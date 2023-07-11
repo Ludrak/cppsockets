@@ -1,0 +1,9 @@
+client
+server
+certificates/
+*.pem
+*.out
+*.swp
+*.o
+bin
+.vscode
