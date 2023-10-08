@@ -49,17 +49,27 @@ include_directories(./examples/includes)
 
 
 add_library(cppsockets STATIC
+	# socket handlers
 	src/common/socket_handlers/poll_sockethandler.cpp
 	src/common/socket_handlers/select_sockethandler.cpp
 
+	# packet slicer 
 	src/common/protocols/packet_manager.cpp
 
+	# built-in protocols
+	src/protocols/raw/protocol.cpp
+
+	# common
 	src/common/inet_address.cpp
 	src/common/tcp_socket.cpp
 
+	# client
+	src/client/client_connection.cpp
+	src/client.cpp
+
+	# server
 	src/server/server_endpoint.cpp
 	src/server/server_client.cpp
-
 	src/server.cpp
 )
 
@@ -73,15 +83,14 @@ if (build-examples)
 
 	include_directories(./examples/includes)
 
-	# add_executable(example-client
-	# 	examples/example-client/main.cpp
-	# )
-
+	add_executable(example-client
+		examples/example-client/main.cpp
+	)
+	target_link_libraries(example-client cppsockets)
 
 	add_executable(example-server
 		examples/example-server/main.cpp
 	)
-
 	target_link_libraries(example-server cppsockets)
 
 endif(build-examples)

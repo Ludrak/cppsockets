@@ -34,85 +34,84 @@ class SocketsHandler {};
 #endif
 
 
-#include "server/server_client.hpp"
-#include "server/server_endpoint.hpp"
+#include "client/client_connection.hpp"
 
-class Server
+class Client
 {
     public:
 	/* ================================================ */
 	/* Constructors                                     */
 	/* ================================================ */
 
-	/* Server default constructor, endpoints should be added with addEndpoint  */
-	Server(void);
+	// default constructor
+	Client(void);
 
-	/* Server constructor for multiple endpoints                               */
-	/* this call can throw if one of the endpoints contains an invalid address */
-	/* and thus needs to be catched.                                           */
-	/* If TLS is enabled, it can also throw a SSLInitException.                */
-	Server(const std::list<ServerEndpoint>& endpoints);
+	/* Client constructor for multiple connections                               */
+	/* this call can throw if one of the connectiond contains an invalid address */
+	/* and thus needs to be catched.                                             */
+	/* If TLS is enabled, it can also throw a SSLInitException.                  */
+	Client(const std::list<ClientConnection>& connections);
 
-	/* Server constructor for single endpoint                                  */
-	/* this call can throw if the endpoint contains an invalid address.        */
+	/* Client constructor for single connection                                  */
+	/* this call can throw if the connection contains an invalid address.        */
 	/* If TLS is enabled, it can also throw a SSLInitException.                */
+
+
+/* Client constructor for single connection                                  */
+/* this call can throw if the connection contains an invalid address.        */
+/* If TLS is enabled, it can also throw a SSLInitException.                */
 	template<class I>
 #ifdef ENABLE_TLS
-	Server(
-			typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, const std::string&>::type
-			ip_address,
-			const int port,
-			const bool useTLS,
-			const sa_family_t family)
-	: Server()
+	Client(
+		typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, const std::string&>::type
+		ip_address,
+		const int port,
+		const bool useTLS,
+		const sa_family_t family)
+	: Client()
 	{
 		this->addEndpoint<I>(ip_address, port, useTLS, family);
 	}
 #else
-	Server(
-			typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, const std::string&>::type
-			ip_address,
-			const int port,
-			const sa_family_t family)
-	: Server()
+	Client(
+		typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, const std::string&>::type
+		ip_address,
+		const int port,
+		const sa_family_t family)
+	: Client()
 	{
-	    this->addEndpoint<I>(ip_address, port, family);
+	    this->connect<I>(ip_address, port, family);
 	}
 #endif
 	
-	Server(const Server& copy) = delete;
+	Client(const Client& copy) = delete;
 
-	Server& operator=(const Server& other) = delete;
+	Client& operator=(const Client& other) = delete;
 
-	~Server();
+	~Client();
 
 
 	/* ================================================ */
 	/* Public Members                                   */
 	/* ================================================ */
 
-		/* Adds a new ServerEndpoint with the provided GatewayInterface                                                                */
+	/* Adds a new ClientConnection with the provided GatewayInterface             */
 	template<class I>
-	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, void>::type
-	addEndpoint(
+	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, void>::type
+	connect(
 	    const std::string& ip_address,
 	    const int port,
 	    const sa_family_t family = AF_INET
 	)
 	{
-	    ServerEndpoint endpoint = ServerEndpoint(ip_address, port, family);
-		this->endpoints.emplace_back(endpoint);
-	    GatewayInterfaceBase<Side::SERVER>* interface = new I(*this, *this->endpoints.rbegin());
-	    this->endpoints.rbegin()->setInterface(interface);
+	    ClientConnection connection = ClientConnection(ip_address, port, family);
+		this->connections.emplace_back(connection);
+		ClientConnection& insert = *this->connections.rbegin();
+	    GatewayInterfaceBase<Side::CLIENT>* interface = new I(*this, insert);
+	    insert.setInterface(interface);
+	    insert.connect();
+		this->_poll_handler.addSocket(insert.getSocket());
 	}
-
-	/* Makes the server starts listening,                                          */
-	/* after that, wait_update should be called to gather informations.            */
-	/* This call can throw an exception if any of the specified endpoints cannot   */
-	/* bind the specified address of that listen fails, when TLS is used, it loads */
-	/* the certificates and can thus throw a SSLCertException                      */
-	void    start_listening(int max_pending_connections = 10);
-
 
 
 	/* Waits for an update on the read fds, needs to be called every time        */
@@ -130,61 +129,40 @@ class Server
 	/* Other Utils                                      */
 	/* ================================================ */
 
-	/* disconnects the specified client from the server*/
-	bool    disconnect(ServerClient& client);
-
-	/* shutdowns the server an closes all connections */
+	/* shutdowns the client an closes all connections */
 	void    shutdown();
 
-	// finds a client by searching all the endpoints
-	// this is quite slow 
-	ServerClient* findClient(int socket);
+	// finds a connection by socket
+	ClientConnection* findConnection(int socket);
+
+	void	closeConnection(ClientConnection& connection);
 
 	// queues data to be sent to client 
 	// this call must be used by a protocol to emit their formatted data
-	void    sendData(ServerClient& client, const void *data, size_t data_size);
+	void	sendData(ClientConnection& connection, const void *data, size_t data_size);
+
 
 
     /* ================================================ */
     /* Private members                                  */
     /* ================================================ */
     private:
-	// for clients trying to connect on the endpoints
-	// returns:
-	// 0 -> no event processed, no error
-	// 1 -> one event processed, no error
-	// >1 -> error
-	int     _handleServerEvent(const SocketsHandler::socket_event& ev);
-    
-	// for the clients that are already connected to an endpoint
+
+	// for the clients that are already connected to an connection
 	// returns:
 	// true: no errors occured
 	// false: an error occured, running needs to be checked in wait_update in case 
-	//        a client called shutdown()
-	bool    _handleClientsEvent(const SocketsHandler::socket_event& ev);
-
+	//        a shutdown() was called
+	bool    _handleClientEvent(const SocketsHandler::socket_event& ev);
 
 	/* ================================================ */
-	/* Accept Handlers                                  */
+	/* Connection to server                             */
 	/* ================================================ */
+// 	bool    _connect(ClientConnection& connection);
 
-	int     _accept(ServerEndpoint& endpoint);
-	
-
-	// TODO REFRACTOR FOR NEW ENDPOINTS
-	// int     _accept6(ServerEndpoint& endpoint);
-	
-#ifdef ENABLE_TLS
-
-	// TODO REFRACTOR FOR NEW ENDPOINTS
-	// like in openssl:
-	// returns 1  => done
-	// returns 0  => expects more data
-	// returns -1 => invalid
-	// int     _ssl_do_accept(ServerClient& client);
-
-	// int     _accept_ssl(ServerEndpoint& endpoint);
-#endif
+// #ifdef ENABLE_TLS
+// 	bool    _connect_ssl(ClientConnection& connection);
+// #endif
 
 
 
@@ -195,10 +173,10 @@ class Server
 // must at least be sizeof(packet_data_header) (or sizeof(size_t) + 32)
 // TODO MOVE THIS ELSEWHERE MORE VISIBLE
 #define RECV_BLK_SIZE   1024
-	bool     _receive(ServerClient& from);
+	bool     _receive(ClientConnection& from);
 
 	// Sends the data queued for client, returns true if data was flushed entierly.
-	bool    _send_data(ServerClient& client);
+	bool    _send_data(ClientConnection& connection);
 
 
     /* ================================================ */
@@ -206,11 +184,7 @@ class Server
     /* ================================================ */
 
     public:
-	std::list<ServerEndpoint>   endpoints;
-
-	bool        running;
-	int         n_clients_connected;
-	int         max_connections;
+	std::list<ClientConnection>   connections;
 
 #ifdef ENABLE_TLS
 	std::string ssl_cert_file;

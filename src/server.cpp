@@ -149,6 +149,7 @@ ServerClient* Server::findClient(int socket)
 {
     for (ServerEndpoint& ep: this->endpoints)
     {
+        // std::cout << "check endpoint " << ep.getHostname() << ":" << ep.getPort() << std::endl;
         // since clients in ServerEndpoint are stored in a std::map
         // keyed by the client's socket, we can filter out ServerEndpoints
         // that can't contain the socket
@@ -164,6 +165,14 @@ ServerClient* Server::findClient(int socket)
         }
     }
     return (nullptr);
+}
+
+
+void	Server::sendData(ServerClient& client, const void *data, size_t data_size)
+{
+    std::cout << "queued emit to " << client.getHostname() << std::endl;
+    client.appendSendBuffer(reinterpret_cast<const uint8_t*>(data), data_size);
+    this->_poll_handler.socketWantsWrite(client.getSocket(), true);
 }
 
 
@@ -188,11 +197,8 @@ bool    Server::disconnect(ServerClient& client)
     client.getEndpoint().getInterface()->onDisconnected(client);
     this->_poll_handler.delSocket(client.getSocket());
     client.getEndpoint().delClient(socket);
-    // if (this->_clients.erase(socket) == 0)
-    // {
-    //     LOG_ERROR(LOG_CATEGORY_NETWORK, "trying to disconnect unkown client with socket " << socket << " from address " << address)
-    //     return false;
-    // }
+    // TODO better check deletion result
+
     ::close(socket);
     this->n_clients_connected--;
     // LOG_INFO(LOG_CATEGORY_NETWORK, "client from " << address << " disconnected");
@@ -202,9 +208,6 @@ bool    Server::disconnect(ServerClient& client)
 /* shutdowns the server an closes all connections */
 void    Server::shutdown()
 {
-    // for (typename client_list_type::iterator it = this->_clients.begin(); it != this->_clients.end(); ++it)
-    //     ::close(it->second.getSocket());
-
     for (ServerEndpoint& ep : this->endpoints)
         ep.close();//::close(ep.getSocket());
     this->running = false;
@@ -268,7 +271,10 @@ bool    Server::_handleClientsEvent(const SocketsHandler::socket_event& ev)
         // TODO move the clients list into the ServerEndpoint class
         ServerClient* client = this->findClient(ev.socket);
         if (client == nullptr)
+        {
+            // std::cout << "No client found for Server::_handleClientsEvent" << std::endl;
             return (false);
+        }
     
         if (EV_IS_ERROR(ev))
         {
@@ -310,46 +316,31 @@ int     Server::_accept(ServerEndpoint& endpoint)
         return (-1);
     }
     
-    // try {
-        InetAddress addr_info = InetAddress(client_addr);
-        if (this->max_connections > 0 && this->n_clients_connected >= this->max_connections)
-        {
-            std::cout << "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname()<< std::endl;
-            // LOG_INFO(LOG_CATEGORY_NETWORK, "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname());
-            // cannot accept more clients
-            ::close(client_socket);
-            return (-1);
-        }
+    InetAddress addr_info = InetAddress(client_addr);
+    if (this->max_connections > 0 && this->n_clients_connected >= this->max_connections)
+    {
+        std::cout << "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname()<< std::endl;
+        // LOG_INFO(LOG_CATEGORY_NETWORK, "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname());
+        // cannot accept more clients
+        ::close(client_socket);
+        return (-1);
+    }
 
-        //std::pair<typename Server::client_list_type::iterator, bool> insertion = this->_clients.insert(std::make_pair(client_socket, client_type(client_socket, addr_info)));
-        //if (insertion.second == false)
-        ServerClient*   client = endpoint.addClient(client_socket, ServerClient(endpoint, client_socket, addr_info));
+    ServerClient*   client = endpoint.addClient(client_socket, ServerClient(endpoint, client_socket, addr_info));
+    if (client == nullptr)
+    {
+        std::cout << "Client insertion in std::map failed on endpoint " << endpoint.getHostname() << " for client just arrived from "  << addr_info.getHostname() << std::endl;
+        // LOG_ERROR(LOG_CATEGORY_NETWORK, "Client insertion in std::map failed on endpoint " << endpoint.getHostname() << " for client just arrived from "  << addr_info.getHostname());
+        ::close(client_socket);
+        return (-1);
+    }
 
-        if (client == nullptr)
-        {
-            std::cout << "Client insertion in std::map failed on endpoint " << endpoint.getHostname() << " for client just arrived from "  << addr_info.getHostname() << std::endl;
-            // LOG_ERROR(LOG_CATEGORY_NETWORK, "Client insertion in std::map failed on endpoint " << endpoint.getHostname() << " for client just arrived from "  << addr_info.getHostname());
-            ::close(client_socket);
-            return (-1);
-        }
-
-        this->n_clients_connected++;
-        this->_poll_handler.addSocket(client->getSocket());
-        
-
-        // LOG_INFO(LOG_CATEGORY_NETWORK, "New client connected on endpoint " << endpoint.getHostname() << " from "  << addr_info.getHostname());
-        
-        endpoint.getInterface()->onConnected(*client);
-
-        //this->_client_handler.onConnected((*insertion.first).second);
-        return (client->getSocket());
-
-    // } catch (std::exception& e)
-    // {
-    //     LOG_ERROR(LOG_CATEGORY_NETWORK, "Client creation failed for connection on IPv4: " << e.what());
-    //     ::close(client_socket);
-    //     return (-1);
-    // };
+    this->n_clients_connected++;
+    this->_poll_handler.addSocket(client->getSocket());
+    
+    // LOG_INFO(LOG_CATEGORY_NETWORK, "New client connected on endpoint " << endpoint.getHostname() << " from "  << addr_info.getHostname());
+    endpoint.getInterface()->onConnected(*client);
+    return (client->getSocket());
 }
 
 // TODO REFRACTOR FOR NEW ENDPOINTS
@@ -549,10 +540,6 @@ bool     Server::_receive(ServerClient& from)
             break; 
     }
     std::cout << "after recv" << std::endl;
-    // if (from.receiveData(buffer, size) == true)
-    // {
-    //     this->_client_handler.handle(from);
-    // }
     return (true);
 }
 
@@ -561,6 +548,7 @@ bool     Server::_receive(ServerClient& from)
 // Sends the data queued for client, returns true if data was flushed entierly.
 bool    Server::_send_data(ServerClient& client)
 {
+    std::cout << "send_data" << std::endl;
     if (client.getSendSize() == 0)
     {
         //LOG_ERROR(LOG_CATEGORY_NETWORK, "fd_set was set for sending for client from " << client.getHostname() << " however no data is provider to send.")
@@ -583,6 +571,7 @@ bool    Server::_send_data(ServerClient& client)
         sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
 #else
     ssize_t sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
+    std::cout << "send" << std::endl;
 #endif
     if (sent_bytes < 0)
     {
@@ -600,14 +589,10 @@ bool    Server::_send_data(ServerClient& client)
     else if ((size_t)sent_bytes != client.getSendSize())
     {
         client.clearSendBuffer(sent_bytes);
-        // std::string left = client._data_to_send.top().substr(sent_bytes, client._data_to_send.top().length());
-        // client._data_to_send.pop();
-        // client._data_to_send.push(left);   
         // LOG_INFO(LOG_CATEGORY_NETWORK, "Data sent to client from " << client.getHostname()<< " was cropped: " << client._data_to_send.top().length() << " bytes left to send");
         return false;
     }
     // sent full packet.
-    // client._data_to_send.pop();
     client.clearSendBuffer();
     if (client.getSendSize() == 0)
         this->_poll_handler.socketWantsWrite(client.getSocket(), false);

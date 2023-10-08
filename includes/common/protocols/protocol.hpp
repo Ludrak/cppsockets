@@ -14,6 +14,12 @@ class ServerClient;
 // Predefintion of ServerEndpoint class
 class ServerEndpoint;
 
+// Predefinition of ClientConnection class
+class ClientConnection;
+
+// Predefintion of Client class
+class Client;
+
 // Predefinition of Server class
 class Server;
 
@@ -60,8 +66,8 @@ template<>
 class GatewayInterfaceBase<Side::CLIENT>
 {
     public:
-        GatewayInterfaceBase(ProtocolParserBase* parser)
-        : parser(parser)
+        GatewayInterfaceBase(Client& client, ClientConnection& connection, ProtocolParserBase* parser)
+        : parser(parser), client(client), connection(connection)
         {}
         virtual ~GatewayInterfaceBase() {}
 
@@ -75,6 +81,10 @@ class GatewayInterfaceBase<Side::CLIENT>
     
     protected:
         ProtocolParserBase* parser;
+    
+    public:
+        Client&             client;
+        ClientConnection&   connection;
 };
 
 template<>
@@ -88,10 +98,10 @@ class GatewayInterfaceBase<Side::SERVER>
         virtual ~GatewayInterfaceBase() {}
 
         /* Base hooks, called by the server to interface with the protocol */
-        virtual void    onConnected(const ServerClient& client) = 0;
-        virtual void    onDisconnected(const ServerClient& client) = 0;
+        virtual void    onConnected(ServerClient& client) = 0;
+        virtual void    onDisconnected(ServerClient& client) = 0;
 
-        virtual void    receive(const ServerClient& from, void* parsed_data) = 0;
+        virtual void    receive(ServerClient& from, void* parsed_data) = 0;
         
         ProtocolParserBase* getParser() { return (parser); };
     

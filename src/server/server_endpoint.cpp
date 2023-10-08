@@ -56,6 +56,7 @@ void    ServerEndpoint::start_listening(const int max_pending_connections) const
 	else
 #endif
 		// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on endpoint " << this->getHostname() << " on port " << this->_port)
+	std::cout << "Started listening on endpoint " << this->getHostname() << " on port " << this->_port << std::endl;
 }
 
 void			ServerEndpoint::close()

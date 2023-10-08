@@ -43,7 +43,6 @@ class ServerEndpoint : public InetAddress, public TcpSocket
 		// switches the current interface of the endpoint
 		void								setInterface(GatewayInterfaceBase<Side::SERVER> *const interface);
 		GatewayInterfaceBase<Side::SERVER>*	getInterface();
-		//ProtocolParserBase*					getParser();
 
 		class BindException : public std::logic_error
 		{
@@ -62,39 +61,7 @@ class ServerEndpoint : public InetAddress, public TcpSocket
 		bool    _useTLS;
 #endif
 		GatewayInterfaceBase<Side::SERVER>*			_interface;
-		//ProtocolParserBase*							_parser;
-
 		std::map<int, ServerClient>					_clients;
 };
 
 #include "server_client.hpp"
-
-//  USE Server::addEndpoint instead
-
-// #ifdef ENABLE_TLS
-
-// template<Protocol P, GatewayInterface<Side::SERVER, P> I>
-// ServerEndpoint*	make_endpoint(
-// 	const std::string& ip_address,
-// 	const int port,
-// 	const bool useTLS = false,
-// 	const sa_family_t family = AF_INET,
-// 	GatewayInterfaceBase<Side::SERVER>* interface = new I()
-// )
-// {
-// 	return (new ServerEndpoint(interface, ip_address, port, useTLS, family));
-// }
-
-// #else
-
-// template<Protocol P, GatewayInterface<Side::SERVER, P> I>
-// ServerEndpoint*	make_endpoint(
-// 	const std::string& ip_address,
-// 	const int port,
-// 	const sa_family_t family = AF_INET,
-// 	GatewayInterfaceBase<Side::SERVER>* interface = new I()
-// )
-// {
-// 	return (new ServerEndpoint(interface, ip_address, port, family));
-// }
-// #endif

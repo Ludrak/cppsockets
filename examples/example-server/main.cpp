@@ -9,74 +9,11 @@
 // #endif
 
 // # define ENABLE_TLS
+
 # include "server.hpp"
+
 # include "protocols/raw/protocol_interface.hpp"
 # include "protocols/raw/protocol_parser.hpp"
-// # include "dto.hpp"
-
-// class ClientData
-// {
-// 	public:
-// 		// independant data storage for every client
-// 		bool	asked_status = false;
-// };
-
-// class TaskmasterClientsManager : public ServerClientsHandler<TaskmasterClientsManager, ClientData>
-// {
-//     public:
-//         TaskmasterClientsManager(server_type& server)
-//         : handler_type(server)
-//         {}
-
-// 		void onConnected(client_type& client)
-// 		{
-// 			if (client.useTLS())
-// 				std::cout << client.getCertificate() << std::endl;
-// 		}
-
-//         void declareMessages()
-//         {
-//             this->server.onMessage<StatusDTO>("status", [](server_type& server, client_type& client, DTO* dto)
-//                 {
-//                     // always safe
-// 					StatusDTO* status = reinterpret_cast<StatusDTO*>(dto);
-					
-// 					client.asked_status = status->value;
-// 					LOG_INFO(LOG_CATEGORY_NETWORK, "Received status with value of " << status->value << ", sending back value 42");
-
-// 					// resending back packet with different value
-// 					status->value = 42;
-// 					server.emit_now("status_response", *status, client);
-
-// 					::close(client.getSocket());
-// 				}
-//             );
-//         }
-// };
-
-
-
-
-// class ExampleMessagesInterface: GatewayInterface<Side::SERVER, Protocol::MESSAGES>
-// {
-	
-// 	void	onReceived(const client_type& client, const std::string& message) override
-// 	{
-// 		if (message == hello):
-// 			server.endpoints["RawEndpoint1"].send(client, "hi");
-// 		this.emit()
-// 	}
-// };
-
-// class ExampleRawInterface: GatewayInterface<Side::SERVER, Protocol::RAW>
-// {
-// 	void	onReceived(const client_type& client, const std::string& message) override
-// 	{
-		
-// 	}
-// };
-
-
 
 class ExampleInterface : public GatewayInterface<Side::SERVER, Protocol::RAW>
 {
@@ -87,16 +24,19 @@ class ExampleInterface : public GatewayInterface<Side::SERVER, Protocol::RAW>
 
 		}
 
-		void onReceived(const ServerClient& client, const std::string& message) override
+		void onReceived(ServerClient& client, const std::string& message) override
 		{
 			std::cout << "Received from " << client.getHostname() << " : " << '\'' << message << '\'' << std::endl;
+			this->emit(client, "Received: '" + message + "'\n");
 		}
 
-		void onConnected(const ServerClient& client) override
+		void onConnected(ServerClient& client) override
 		{
 			std::cout << "Client connected on endpoint " << this->endpoint.getHostname() << " from " << client.getHostname() << std::endl;
+			this->emit(client, "Hi\n");
 		}
-		void onDisconnected(const ServerClient& client) override
+
+		void onDisconnected(ServerClient& client) override
 		{
 			std::cout << "Client disconnected from endpoint " << this->endpoint.getHostname() << " from " << client.getHostname() << std::endl;
 		}
@@ -146,6 +86,7 @@ int main(int ac, char** av)
 	// 2. addEndpoint endpoint
 	Server	*server = new Server();
 	server->addEndpoint<ExampleInterface>(std::string("localhost"), 8080, AF_INET);
+	server->addEndpoint<ExampleInterface>(std::string("localhost"), 6060, AF_INET);
 
 	// server->ssl_cert_file = 		"./certificates/cert.pem";
 	// server->ssl_private_key_file =	"./certificates/cert.pem";
