@@ -1,5 +1,4 @@
-client
-server
+build
 certificates/
 *.pem
 *.out

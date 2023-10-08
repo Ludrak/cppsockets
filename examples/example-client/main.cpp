@@ -11,20 +11,25 @@
 #endif
 
 # define ENABLE_TLS
-#include "net/client.hpp"
+#include "client.hpp"
 #include "dto.hpp"
+
+#include "common/packet/protocol.hpp"
 
 class ClientData
 {
     // data storage for client to use in handlers
+    // (client context)
 };
 
-class TaskmasterClientHandler : public ClientHandler<TaskmasterClientHandler, ClientData>
+class TaskmasterClientHandler : public ClientHandler<TaskmasterClientHandler, ClientData>,
+                                public MessagesServerProtocolInterface
 {
     public:
         TaskmasterClientHandler(client_type& Client)
         : handler_type(Client)
-        {}
+        {
+        }
 
         void onConnected()
         {
@@ -35,14 +40,21 @@ class TaskmasterClientHandler : public ClientHandler<TaskmasterClientHandler, Cl
 
         void declareMessages()
         {
-            this->client.onMessage("status_response", 
-                client_type::make_handler<StatusDTO>([](client_type& client, DTO* dto)
+            // this->client.onMessage<StatusDTO>("status_response", [](client_type& client, DTO* dto)
+            //     {
+            //         StatusDTO *status = reinterpret_cast<StatusDTO*>(dto);
+            //         LOG_INFO(LOG_CATEGORY_NETWORK, "Received status response from server with value: " << status->value);
+            //         client.disconnect();
+            //     }
+            // );
+
+            this->onMessage<StatusDTO>("status_response", [](client_type& client, DTO* dto)
                 {
                     StatusDTO *status = reinterpret_cast<StatusDTO*>(dto);
                     LOG_INFO(LOG_CATEGORY_NETWORK, "Received status response from server with value: " << status->value);
                     client.disconnect();
                 }
-            ));
+            );
         }
 };
 
