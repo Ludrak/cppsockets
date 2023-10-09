@@ -6,16 +6,15 @@
 #include <string>
 #include <exception>
 
-#include "common/tcp_socket.hpp"
+#include "common/socket.hpp"
 #include "common/inet_address.hpp"
 
-#include "common/protocols/protocol.hpp"
-
-#include "common/protocols/packet_manager.hpp"
+#include "common/interfaces/gateway_interface.hpp"
+#include "common/packets/buffered_io.hpp"
 
 class Client;
 
-class ClientConnection : public InetAddress, public TcpSocket, public PacketManager
+class ClientConnection : public InetAddress, public Socket, public BufferedIO
 {
 	public:
 

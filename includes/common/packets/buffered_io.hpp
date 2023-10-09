@@ -3,7 +3,8 @@
 #include <string>
 #include <queue>
 
-class PacketManager
+// later rename to BufferedIO
+class BufferedIO
 {
     public:
         /* RECEIVING */

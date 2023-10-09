@@ -308,7 +308,21 @@ int     Server::_accept(ServerEndpoint& endpoint)
     sockaddr_in     client_addr;
     socklen_t       len = sizeof(client_addr);
     std::memset(&client_addr, 0, len);
-    int client_socket = ::accept(endpoint.getSocket(), (sockaddr*)&client_addr, &len);
+
+    if (this->max_connections > 0 && this->n_clients_connected >= this->max_connections)
+    {
+        std::cout << "Cannot accept more than " << this->max_connections << " connections, refusing new client." << std::endl;
+        // LOG_INFO(LOG_CATEGORY_NETWORK, "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname());
+        // cannot accept more clients
+        // flushes the endpoint socket
+        int client_socket = endpoint.getInterface()->getProtocol()->acceptMethod(endpoint.getSocket(), &client_addr, &len);
+        close (client_socket);
+        return (-1);
+    }
+
+    
+    // int client_socket = ::accept(endpoint.getSocket(), (sockaddr*)&client_addr, &len);
+    int client_socket = endpoint.getInterface()->getProtocol()->acceptMethod(endpoint.getSocket(), &client_addr, &len);
     if (client_socket <= 0)
     {
         std::cout << "Accept failed on endpoint " << endpoint.getHostname() << " with error: " << std::strerror(errno) << std::endl;
@@ -316,16 +330,7 @@ int     Server::_accept(ServerEndpoint& endpoint)
         return (-1);
     }
     
-    InetAddress addr_info = InetAddress(client_addr);
-    if (this->max_connections > 0 && this->n_clients_connected >= this->max_connections)
-    {
-        std::cout << "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname()<< std::endl;
-        // LOG_INFO(LOG_CATEGORY_NETWORK, "Cannot accept more than " << this->max_connections << " connections, refusing new client from "  << addr_info.getHostname());
-        // cannot accept more clients
-        ::close(client_socket);
-        return (-1);
-    }
-
+    InetAddress     addr_info = InetAddress(client_addr);
     ServerClient*   client = endpoint.addClient(client_socket, ServerClient(endpoint, client_socket, addr_info));
     if (client == nullptr)
     {
@@ -475,28 +480,30 @@ int     Server::_accept(ServerEndpoint& endpoint)
 // must at least be sizeof(packet_data_header) (or sizeof(size_t) + 32)
 bool     Server::_receive(ServerClient& from)
 {
+//     uint8_t buffer[RECV_BLK_SIZE] = {0};
+// #ifdef ENABLE_TLS
+//     ssize_t size;
+//     if (from._useTLS)
+//     {
+//         if (!from._accept_done)
+//         {
+//             // TODO
+//             // if (this->_ssl_do_accept(from) == -1)
+//             // {
+//             //     this->disconnect(from);
+//             //     return false;
+//             // }
+//             return (true);
+//         }
+//         size = SSL_read(from._ssl_connection, buffer, RECV_BLK_SIZE);
+//     }
+//     else
+//         size = recv(from.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
+// #else
+//     ssize_t size = recv(from.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
+// #endif
     uint8_t buffer[RECV_BLK_SIZE] = {0};
-#ifdef ENABLE_TLS
-    ssize_t size;
-    if (from._useTLS)
-    {
-        if (!from._accept_done)
-        {
-            // TODO
-            // if (this->_ssl_do_accept(from) == -1)
-            // {
-            //     this->disconnect(from);
-            //     return false;
-            // }
-            return (true);
-        }
-        size = SSL_read(from._ssl_connection, buffer, RECV_BLK_SIZE);
-    }
-    else
-        size = recv(from.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
-#else
-    ssize_t size = recv(from.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
-#endif
+    ssize_t size = from.getEndpoint().getInterface()->getProtocol()->receiveMethod(from.getSocket(), buffer, RECV_BLK_SIZE);
     std::cout << "recv" << std::endl;
     if (size == 0)
     {
@@ -505,7 +512,7 @@ bool     Server::_receive(ServerClient& from)
     }
     else if (size < 0)
     {
-        // we dont know what made recv fail, but for safety disconnect client.
+        // an error has occured, disconnect the client
         // LOG_ERROR(LOG_CATEGORY_NETWORK, "Recv failed for client from " << from.getHostname() << ": " << std::strerror(errno) << ", disconnecting client for safety.");
         this->disconnect(from);
         return (false);
@@ -517,22 +524,25 @@ bool     Server::_receive(ServerClient& from)
 
     // evaluate the whole buffer
     std::cout << "evalResult" << std::endl;
-    ServerEndpoint& endpoint = from.getEndpoint();
-    ProtocolParserBase::EvalResult eval = endpoint.getInterface()->getParser()->eval(from.getRecvBuffer().c_str(), from.getRecvSize());
+    GatewayInterfaceBase<Side::SERVER>* interface = from.getEndpoint().getInterface();
+    if (interface == nullptr)
+        return (false);
+    
+    PacketParserBase::EvalResult eval = interface->getParser()->eval(from.getRecvBuffer().c_str(), from.getRecvSize());
     switch (eval)
     {
-        case ProtocolParserBase::EvalResult::COMPLETE:
+        case PacketParserBase::EvalResult::COMPLETE:
             std::cout << "COMPLETE" << std::endl;
             // from.getRecvSize() Should be the size of the parsed packet, calculated by eval
-            endpoint.getInterface()->receive(from, endpoint.getInterface()->getParser()->parse(from.getRecvBuffer().c_str(), from.getRecvSize()));
+            interface->receive(from, interface->getParser()->parse(from.getRecvBuffer().c_str(), from.getRecvSize()));
             std::cout << "clearBuff" << std::endl;
             from.clearRecvBuffer(from.getRecvSize());
             break; 
-        case ProtocolParserBase::EvalResult::INCOMPLETE:
+        case PacketParserBase::EvalResult::INCOMPLETE:
             // incomplete packet, more data expected to be received, for now, do nothing
             // maybe add a "packet timeout" to deal with incomplete packets tails that will never arrive
             break; 
-        case ProtocolParserBase::EvalResult::INVALID:
+        case PacketParserBase::EvalResult::INVALID:
             // packet is invalid, clear all data
             // this might also clear the start of the next packet if received early
             // this would make the next packet also invalid
@@ -556,23 +566,24 @@ bool    Server::_send_data(ServerClient& client)
         return false;
     }
     //LOG_INFO(LOG_CATEGORY_NETWORK, "emitting to client from " << client.getHostname());
-#ifdef ENABLE_TLS
-    ssize_t sent_bytes;
-    if (client._useTLS)
-    {
-        if (!client._accept_done)
-        {
-            // LOG_WARN(LOG_CATEGORY_NETWORK, "Attempting to emit to TLS client from " << client.getHostname() << " which is not yet accepted, setting emit for later...");
-            return false;
-        }
-        sent_bytes = SSL_write(client._ssl_connection, client.getSendBuffer().c_str(), client.getSendSize());
-    }
-    else
-        sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
-#else
-    ssize_t sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
-    std::cout << "send" << std::endl;
-#endif
+// #ifdef ENABLE_TLS
+//     ssize_t sent_bytes;
+//     if (client._useTLS)
+//     {
+//         if (!client._accept_done)
+//         {
+//             // LOG_WARN(LOG_CATEGORY_NETWORK, "Attempting to emit to TLS client from " << client.getHostname() << " which is not yet accepted, setting emit for later...");
+//             return false;
+//         }
+//         sent_bytes = SSL_write(client._ssl_connection, client.getSendBuffer().c_str(), client.getSendSize());
+//     }
+//     else
+//         sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
+// #else
+//     ssize_t sent_bytes = send(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize(), 0);
+//     std::cout << "send" << std::endl;
+// #endif
+    ssize_t sent_bytes = client.getEndpoint().getInterface()->getProtocol()->sendMethod(client.getSocket(), client.getSendBuffer().c_str(), client.getSendSize());
     if (sent_bytes < 0)
     {
         // LOG_WARN(LOG_CATEGORY_NETWORK, "Send to client from " << client.getHostname() << " failed with error: " << std::strerror(errno))
@@ -581,13 +592,13 @@ bool    Server::_send_data(ServerClient& client)
             this->_poll_handler.socketWantsWrite(client.getSocket(), false);
         return false;
     }
-    else if (sent_bytes == 0)
+    else if (sent_bytes > 0)
     {
-        // LOG_WARN(LOG_CATEGORY_NETWORK, "sent 0 bytes of data to client from " << client.getHostname());
-        return false;
-    }
-    else if ((size_t)sent_bytes != client.getSendSize())
-    {
+    //     // LOG_WARN(LOG_CATEGORY_NETWORK, "sent 0 bytes of data to client from " << client.getHostname());
+    //     return false;
+    // }
+    // else if ((size_t)sent_bytes != client.getSendSize())
+    // {
         client.clearSendBuffer(sent_bytes);
         // LOG_INFO(LOG_CATEGORY_NETWORK, "Data sent to client from " << client.getHostname()<< " was cropped: " << client._data_to_send.top().length() << " bytes left to send");
         return false;

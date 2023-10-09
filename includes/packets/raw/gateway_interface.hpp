@@ -1,16 +1,18 @@
 #pragma once
 
 #include <string>
+#include "common/interfaces/gateway_interface.hpp"
+#include "packets/raw/gateway_interface.hpp"
 #include "common/protocols/protocol.hpp"
-#include "protocol_parser.hpp"
+#include "protocols/tcp/protocol.hpp"
 
 template<>
-class GatewayInterface<Side::CLIENT, Protocol::RAW> : public GatewayInterfaceBase<Side::CLIENT>
+class GatewayInterface<Side::CLIENT, Packets::RAW> : public GatewayInterfaceBase<Side::CLIENT>
 {
-
     public:
-        typedef ProtocolParser<Protocol::RAW>                   parser_type;
-        typedef GatewayInterface<Side::CLIENT, Protocol::RAW>   interface_type;
+        typedef ProtocolMethod<Protocol::TCP>                  protocol_type;
+        typedef PacketParser<Packets::RAW>                     parser_type;
+        typedef GatewayInterface<Side::CLIENT, Packets::RAW>   interface_type;
 
         GatewayInterface(Client& client, ClientConnection& connection);
 
@@ -27,11 +29,12 @@ class GatewayInterface<Side::CLIENT, Protocol::RAW> : public GatewayInterfaceBas
 };
 
 template<>
-class GatewayInterface<Side::SERVER, Protocol::RAW> : public GatewayInterfaceBase<Side::SERVER>
+class GatewayInterface<Side::SERVER, Packets::RAW> : public GatewayInterfaceBase<Side::SERVER>
 {
     public:
-        typedef ProtocolParser<Protocol::RAW>                   parser_type;
-        typedef GatewayInterface<Side::SERVER, Protocol::RAW>   interface_type;
+        typedef ProtocolMethod<Protocol::TCP>                  protocol_type;
+        typedef PacketParser<Packets::RAW>                     parser_type;
+        typedef GatewayInterface<Side::SERVER, Packets::RAW>   interface_type;
 
         GatewayInterface(Server& server, ServerEndpoint& endpoint);
 

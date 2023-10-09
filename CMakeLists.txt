@@ -53,15 +53,18 @@ add_library(cppsockets STATIC
 	src/common/socket_handlers/poll_sockethandler.cpp
 	src/common/socket_handlers/select_sockethandler.cpp
 
-	# packet slicer 
-	src/common/protocols/packet_manager.cpp
+	# packets buffer
+	src/common/packets/buffered_io.cpp
 
 	# built-in protocols
-	src/protocols/raw/protocol.cpp
+	src/protocols/tcp/protocol.cpp
+
+	# built-in packet slicers
+	src/packets/raw/raw_packets.cpp
 
 	# common
 	src/common/inet_address.cpp
-	src/common/tcp_socket.cpp
+	src/common/socket.cpp
 
 	# client
 	src/client/client_connection.cpp

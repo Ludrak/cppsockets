@@ -4,16 +4,16 @@
     
 #ifdef ENABLE_TLS
 ServerClient::ServerClient(ServerEndpoint& accepted_ep, const int socket, const InetAddress& addr_info, SSL* ssl)
-    : InetAddress(addr_info), TcpSocket(socket, addr_info.getAddressFamily()), PacketManager(), _ssl_connection(ssl), _useTLS(ssl != nullptr), _accept_done(false), _endpoint(accepted_ep)
+    : InetAddress(addr_info), Socket(socket, addr_info.getAddressFamily()), PacketManager(), _ssl_connection(ssl), _useTLS(ssl != nullptr), _accept_done(false), _endpoint(accepted_ep)
     {} 
 #else
 ServerClient::ServerClient(ServerEndpoint& accepted_ep, const int socket, const InetAddress& addr_info)
-    : InetAddress(addr_info), TcpSocket(socket, addr_info.getAddressFamily()), _endpoint(accepted_ep)
+    : InetAddress(addr_info), Socket(socket, addr_info.getAddressFamily()), _endpoint(accepted_ep)
     {} 
 #endif
 
 ServerClient::ServerClient(const ServerClient& copy)
-: InetAddress(copy), TcpSocket(copy), _endpoint(copy._endpoint)
+: InetAddress(copy), Socket(copy), _endpoint(copy._endpoint)
 {
 }
 

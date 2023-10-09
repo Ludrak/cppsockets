@@ -6,14 +6,14 @@
 #include <string>
 #include <exception>
 
-#include "common/tcp_socket.hpp"
+#include "common/socket.hpp"
 #include "common/inet_address.hpp"
 
-#include "common/protocols/protocol.hpp"
+#include "common/interfaces/gateway_interface.hpp"
 
 class ServerClient;
 
-class ServerEndpoint : public InetAddress, public TcpSocket
+class ServerEndpoint : public InetAddress, public Socket
 {
 	public:
 

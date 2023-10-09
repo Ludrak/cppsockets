@@ -3,13 +3,13 @@
 #ifdef ENABLE_TLS
 
 ClientConnection::ClientConnection(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
-: InetAddress(ip_address, port, family), TcpSocket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS)
+: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS)
 {}
 
 #else
 
 ClientConnection::ClientConnection(const std::string& ip_address, const int port, const sa_family_t family)
-: InetAddress(ip_address, port, family), TcpSocket(family), _interface(nullptr)
+: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr)
 {}
 
 #endif
@@ -54,7 +54,7 @@ void    ClientConnection::connect() const
 
 void			                    ClientConnection::close()
 {
-	this->TcpSocket::close();
+	this->Socket::close();
 }
 
 

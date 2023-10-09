@@ -1,21 +1,13 @@
 # include "cpp_argparse.hpp"
 
-// #ifdef __linux__
 # define DISABLE_WARNINGS
 # define USE_SELECT
-// //todo # define USE_EPOLL
-// #elif defined(__APPLE__)
-// # define USE_POLL
-// #endif
-
-// # define ENABLE_TLS
 
 # include "server.hpp"
+# include "packets/raw/gateway_interface.hpp"
 
-# include "protocols/raw/protocol_interface.hpp"
-# include "protocols/raw/protocol_parser.hpp"
 
-class ExampleInterface : public GatewayInterface<Side::SERVER, Protocol::RAW>
+class ExampleInterface : public GatewayInterface<Side::SERVER, Packets::RAW>
 {
 	public:
 		ExampleInterface(Server& server, ServerEndpoint& endpoint)
@@ -72,33 +64,24 @@ int main(int ac, char** av)
 	}
 
 
-	// Server Router
+	// 1. With a list of endpoints
 	// std::list<ServerEndpoint> endpoints;
 	// endpoints.emplace_back(make_endpoint<ExampleInterface>("localhost", 8080, false, AF_INET));
 	// endpoints.emplace_back(make_endpoint<ExampleRawInterface>("localhost", 4040, true, AF_INET));
 	// endpoints.emplace_back(make_endpoint<ExampleRawInterface>("localhost", 6060, false, AF_INET6));
 	// Server	*server = new Server(endpoints);
 
-
-	// 1. constructor endpoint
-	//Server	*server = new Server<ExampleInterface>(serverIp, serverPort, AF_INET);
-
 	// 2. addEndpoint endpoint
 	Server	*server = new Server();
-	server->addEndpoint<ExampleInterface>(std::string("localhost"), 8080, AF_INET);
-	server->addEndpoint<ExampleInterface>(std::string("localhost"), 6060, AF_INET);
+	server->addEndpoint<ExampleInterface>(serverIp, serverPort, AF_INET);
+	server->addEndpoint<ExampleInterface>(serverIp, serverPort + 1010, AF_INET);
 
-	// server->ssl_cert_file = 		"./certificates/cert.pem";
-	// server->ssl_private_key_file =	"./certificates/cert.pem";
-	
 	server->start_listening();
 	while (server->wait_update())
 	{
-		// do taskmaster things...
 		std::cout << "Server loop" << std::endl;
 	}
 	
-	// LOG_INFO(LOG_CATEGORY_INIT, "Exited properly.")
 
 	delete server;
 	return (EXIT_SUCCESS);

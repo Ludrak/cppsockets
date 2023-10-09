@@ -323,21 +323,21 @@ bool     Client::_receive(ClientConnection& connection)
 
     // evaluate the whole buffer
     std::cout << "evalResult" << std::endl;
-    ProtocolParserBase::EvalResult eval = connection.getInterface()->getParser()->eval(connection.getRecvBuffer().c_str(), connection.getRecvSize());
+    PacketParserBase::EvalResult eval = connection.getInterface()->getParser()->eval(connection.getRecvBuffer().c_str(), connection.getRecvSize());
     switch (eval)
     {
-        case ProtocolParserBase::EvalResult::COMPLETE:
+        case PacketParserBase::EvalResult::COMPLETE:
             std::cout << "COMPLETE" << std::endl;
             // connection.getRecvSize() Should be the size of the parsed packet, calculated by eval
             connection.getInterface()->receive(connection.getInterface()->getParser()->parse(connection.getRecvBuffer().c_str(), connection.getRecvSize()));
             std::cout << "clearBuff" << std::endl;
             connection.clearRecvBuffer(connection.getRecvSize());
             break; 
-        case ProtocolParserBase::EvalResult::INCOMPLETE:
+        case PacketParserBase::EvalResult::INCOMPLETE:
             // incomplete packet, more data expected to be received, for now, do nothing
             // maybe add a "packet timeout" to deal with incomplete packets tails that will never arrive
             break; 
-        case ProtocolParserBase::EvalResult::INVALID:
+        case PacketParserBase::EvalResult::INVALID:
             // packet is invalid, clear all data
             // this might also clear the start of the next packet if received early
             // this would make the next packet also invalid

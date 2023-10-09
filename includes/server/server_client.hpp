@@ -8,9 +8,9 @@
 #include <openssl/err.h>
 #endif
 
-#include "common/protocols/packet_manager.hpp"
-#include "common/protocols/protocol.hpp"
-#include "common/tcp_socket.hpp"
+#include "common/packets/buffered_io.hpp"
+#include "common/interfaces/gateway_interface.hpp"
+#include "common/socket.hpp"
 #include "common/inet_address.hpp"
 
 // predefinition of ServerEndpoint
@@ -31,7 +31,7 @@ class Server;
 *
 *
 */
-class ServerClient : public InetAddress, public TcpSocket, public PacketManager
+class ServerClient : public InetAddress, public Socket, public BufferedIO
 {
     public:
 

@@ -3,5 +3,6 @@
 enum class Protocol
 {
     RAW,
-    MESSAGES
+    TCP,
+    UDP
 };

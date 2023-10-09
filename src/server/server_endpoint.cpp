@@ -4,13 +4,13 @@
 #ifdef ENABLE_TLS
 
 ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
-: InetAddress(ip_address, port, family), TcpSocket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS), _clients()
+: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS), _clients()
 {}
 
 #else
 
 ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family)
-: InetAddress(ip_address, port, family), TcpSocket(family), _interface(nullptr), _clients()
+: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _clients()
 {}
 
 #endif
@@ -62,7 +62,7 @@ void    ServerEndpoint::start_listening(const int max_pending_connections) const
 void			ServerEndpoint::close()
 {
 	this->_clients.clear();
-	this->TcpSocket::close();
+	this->Socket::close();
 }
 
 
@@ -114,7 +114,7 @@ GatewayInterfaceBase<Side::SERVER>*	ServerEndpoint::getInterface()
 	return (this->_interface);
 }
 
-// ProtocolParserBase*					ServerEndpoint::getParser()
+// PacketParserBase*					ServerEndpoint::getParser()
 // {
 // 	return (this->_parser);
 // }
