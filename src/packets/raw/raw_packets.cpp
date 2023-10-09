@@ -23,8 +23,8 @@ void*                           PacketParser<Packets::RAW>::parse(const char *da
 
 
 /* CLIENT SIDE*/
-GatewayInterface<Side::CLIENT, Packets::RAW>::GatewayInterface(Client& client, ClientConnection& connection)
-: GatewayInterfaceBase(client, connection, reinterpret_cast<PacketParserBase*>(new parser_type()), reinterpret_cast<ProtocolBase*>(new protocol_type()))
+GatewayInterface<Side::CLIENT, Packets::RAW>::GatewayInterface(Client& client)
+: GatewayInterfaceBase(client, reinterpret_cast<PacketParserBase*>(new parser_type()), reinterpret_cast<ProtocolBase*>(new protocol_type()))
 {}
 
 void            GatewayInterface<Side::CLIENT, Packets::RAW>::onConnected() {}
@@ -33,7 +33,9 @@ void            GatewayInterface<Side::CLIENT, Packets::RAW>::onReceived(const s
 
 void            GatewayInterface<Side::CLIENT, Packets::RAW>::emit(const std::string& str)
 {
-    this->client.sendData(this->connection, str.c_str(), str.size());
+    for (ClientConnection* connection : this->connection)
+        if (connection)
+            this->client.sendData(*connection, str.c_str(), str.size());
 }
 
 void            GatewayInterface<Side::CLIENT, Packets::RAW>::receive(void* parsed_data)
@@ -47,8 +49,8 @@ void            GatewayInterface<Side::CLIENT, Packets::RAW>::receive(void* pars
 
 
 /* SERVER SIDE*/
-GatewayInterface<Side::SERVER, Packets::RAW>::GatewayInterface(Server& server, ServerEndpoint& endpoint)
-: GatewayInterfaceBase(server, endpoint, reinterpret_cast<PacketParserBase*>(new parser_type()), reinterpret_cast<ProtocolBase*>(new protocol_type()))
+GatewayInterface<Side::SERVER, Packets::RAW>::GatewayInterface(Server& server)
+: GatewayInterfaceBase(server, reinterpret_cast<PacketParserBase*>(new parser_type()), reinterpret_cast<ProtocolBase*>(new protocol_type()))
 {}
 
 void            GatewayInterface<Side::SERVER, Packets::RAW>::onConnected(ServerClient& client) { (void)client; };

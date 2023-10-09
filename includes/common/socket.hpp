@@ -11,16 +11,11 @@
 class Socket
 {
     public:
-        template<Protocol P>
-        Socket(const ProtocolMethod<P>& method)
-        {
-            this->_socket = method.generateSocket();
-        }
+        // generates a socket using the ProtocolMethod
+        Socket(const ProtocolBase* method);
 
-        Socket(const int socket, const sa_family_t family = AF_INET);
-
-        Socket(const sa_family_t family = AF_INET);
-
+        // wraps an already existing socket
+        Socket(const int socket, const sa_family_t family);
 
         int     getSocket() const;
         

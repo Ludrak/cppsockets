@@ -18,11 +18,17 @@ class ClientConnection : public InetAddress, public Socket, public BufferedIO
 {
 	public:
 
-#ifdef ENABLE_TLS
-		ClientConnection(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
-#else
-		ClientConnection(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
-#endif
+// #ifdef ENABLE_TLS
+// 		ClientConnection(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
+// #else
+// 		ClientConnection(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
+// #endif
+
+
+
+		ClientConnection(GatewayInterfaceBase<Side::CLIENT> *const interface, const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
+
+
 
 #ifdef ENABLE_TLS
 		bool								useTLS() const;
@@ -35,7 +41,6 @@ class ClientConnection : public InetAddress, public Socket, public BufferedIO
 		void								close();
 
 		// switches the current interface of the endpoint
-		void								setInterface(GatewayInterfaceBase<Side::CLIENT> *const interface);
 		GatewayInterfaceBase<Side::CLIENT>*	getInterface();
 
 		class ConnectException : public std::logic_error

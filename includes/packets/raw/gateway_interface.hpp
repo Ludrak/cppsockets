@@ -14,7 +14,7 @@ class GatewayInterface<Side::CLIENT, Packets::RAW> : public GatewayInterfaceBase
         typedef PacketParser<Packets::RAW>                     parser_type;
         typedef GatewayInterface<Side::CLIENT, Packets::RAW>   interface_type;
 
-        GatewayInterface(Client& client, ClientConnection& connection);
+        GatewayInterface(Client& client);
 
         virtual void    onConnected() override;
         virtual void    onDisconnected() override;
@@ -36,7 +36,7 @@ class GatewayInterface<Side::SERVER, Packets::RAW> : public GatewayInterfaceBase
         typedef PacketParser<Packets::RAW>                     parser_type;
         typedef GatewayInterface<Side::SERVER, Packets::RAW>   interface_type;
 
-        GatewayInterface(Server& server, ServerEndpoint& endpoint);
+        GatewayInterface(Server& server);
 
         virtual void    onConnected(ServerClient& client) override;
         virtual void    onDisconnected(ServerClient& client) override;

@@ -10,6 +10,7 @@
 #include "common/inet_address.hpp"
 
 #include "common/interfaces/gateway_interface.hpp"
+#include "common/protocols/protocol.hpp"
 
 class ServerClient;
 
@@ -17,11 +18,14 @@ class ServerEndpoint : public InetAddress, public Socket
 {
 	public:
 
-#ifdef ENABLE_TLS
-		ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
-#else
-		ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
-#endif
+// #ifdef ENABLE_TLS
+// 		ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
+// #else
+// 		ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
+// #endif
+
+		ServerEndpoint(GatewayInterfaceBase<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
+
 
 		// those should only be called by the server
 		// maybe move to protected and friend class w/ server
@@ -41,7 +45,6 @@ class ServerEndpoint : public InetAddress, public Socket
 		void								close();
 
 		// switches the current interface of the endpoint
-		void								setInterface(GatewayInterfaceBase<Side::SERVER> *const interface);
 		GatewayInterfaceBase<Side::SERVER>*	getInterface();
 
 		class BindException : public std::logic_error

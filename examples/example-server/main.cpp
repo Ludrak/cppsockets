@@ -10,10 +10,9 @@
 class ExampleInterface : public GatewayInterface<Side::SERVER, Packets::RAW>
 {
 	public:
-		ExampleInterface(Server& server, ServerEndpoint& endpoint)
-		: GatewayInterface(server, endpoint)
+		ExampleInterface(Server& server)
+		: GatewayInterface(server)
 		{
-
 		}
 
 		void onReceived(ServerClient& client, const std::string& message) override
@@ -24,13 +23,13 @@ class ExampleInterface : public GatewayInterface<Side::SERVER, Packets::RAW>
 
 		void onConnected(ServerClient& client) override
 		{
-			std::cout << "Client connected on endpoint " << this->endpoint.getHostname() << " from " << client.getHostname() << std::endl;
+			std::cout << "Client connected on endpoint " << this->endpoint[0]->getHostname() << " from " << client.getHostname() << std::endl;
 			this->emit(client, "Hi\n");
 		}
 
 		void onDisconnected(ServerClient& client) override
 		{
-			std::cout << "Client disconnected from endpoint " << this->endpoint.getHostname() << " from " << client.getHostname() << std::endl;
+			std::cout << "Client disconnected from endpoint " << this->endpoint[0]->getHostname() << " from " << client.getHostname() << std::endl;
 		}
 };
 
@@ -73,8 +72,20 @@ int main(int ac, char** av)
 
 	// 2. addEndpoint endpoint
 	Server	*server = new Server();
+
+	// Adding endpoints
+
+	// option 1 : Add endpoint and instantiate the interface at the same time
 	server->addEndpoint<ExampleInterface>(serverIp, serverPort, AF_INET);
 	server->addEndpoint<ExampleInterface>(serverIp, serverPort + 1010, AF_INET);
+
+	// option 2 : 
+	// 1 - create interface
+	ExampleInterface interface = ExampleInterface(*server);
+	// 2- attach interface to multiple endpoints
+	//    (all endpoints data is received, parsed, sent by a single interface, the clients however are split across all the endpoints and not shared in a single list)
+	server->addEndpoint(interface, "localhost", 9000);
+	server->addEndpoint(interface, "localhost", 8000);
 
 	server->start_listening();
 	while (server->wait_update())

@@ -100,10 +100,31 @@ class Server
 	    const sa_family_t family = AF_INET
 	)
 	{
-	    ServerEndpoint endpoint = ServerEndpoint(ip_address, port, family);
+	    // create the interface
+	    GatewayInterfaceBase<Side::SERVER>* interface = new I(*this);
+		// create an endpoint for this interface
+		ServerEndpoint endpoint = ServerEndpoint(interface, ip_address, port, family);
 		this->endpoints.emplace_back(endpoint);
-	    GatewayInterfaceBase<Side::SERVER>* interface = new I(*this, *this->endpoints.rbegin());
-	    this->endpoints.rbegin()->setInterface(interface);
+
+		// attach the interface to the endpoint
+		interface->attachToEndpoint(&(*this->endpoints.rbegin()));
+	}
+
+	template<class I>
+	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, void>::type
+	addEndpoint(
+		I& interface,
+	    const std::string& ip_address,
+	    const int port,
+	    const sa_family_t family = AF_INET
+	)
+	{
+		// create an endpoint for the specified interface
+		ServerEndpoint endpoint = ServerEndpoint(reinterpret_cast<GatewayInterfaceBase<Side::SERVER>*>(&interface), ip_address, port, family);
+		this->endpoints.emplace_back(endpoint);
+
+		// attach the interface to the endpoint
+		interface.attachToEndpoint(&(*this->endpoints.rbegin()));
 	}
 
 	/* Makes the server starts listening,                                          */

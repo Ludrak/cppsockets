@@ -1,18 +1,22 @@
 #include "client/client_connection.hpp"
 
-#ifdef ENABLE_TLS
+// #ifdef ENABLE_TLS
 
-ClientConnection::ClientConnection(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
-: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS)
+// ClientConnection::ClientConnection(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
+// : InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS)
+// {}
+
+// #else
+
+// ClientConnection::ClientConnection(const std::string& ip_address, const int port, const sa_family_t family)
+// : InetAddress(ip_address, port, family), Socket(family), _interface(nullptr)
+// {}
+
+// #endif
+
+ClientConnection::ClientConnection(GatewayInterfaceBase<Side::CLIENT> *const interface, const std::string& ip_address, const int port, const sa_family_t family)
+: InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface)
 {}
-
-#else
-
-ClientConnection::ClientConnection(const std::string& ip_address, const int port, const sa_family_t family)
-: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr)
-{}
-
-#endif
 
 
 
@@ -57,11 +61,6 @@ void			                    ClientConnection::close()
 	this->Socket::close();
 }
 
-
-void								ClientConnection::setInterface(GatewayInterfaceBase<Side::CLIENT> *const interface)
-{
-	this->_interface = interface;
-}
 
 GatewayInterfaceBase<Side::CLIENT>*	ClientConnection::getInterface()
 {

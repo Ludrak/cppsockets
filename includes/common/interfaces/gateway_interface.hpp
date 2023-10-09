@@ -2,6 +2,7 @@
 
 #include "common/packets/packet_parser.hpp"
 #include "common/protocols/protocol.hpp"
+#include <vector>
 
 /***********************************************************************************/
 /*                            GATEWAY INTERFACES                                   */
@@ -14,8 +15,8 @@ template<>
 class GatewayInterfaceBase<Side::CLIENT>
 {
     public:
-        GatewayInterfaceBase(Client& client, ClientConnection& connection, PacketParserBase* parser, ProtocolBase* protocol)
-        : parser(parser), protocol(protocol), client(client), connection(connection)
+        GatewayInterfaceBase(Client& client, PacketParserBase* parser, ProtocolBase* protocol)
+        : parser(parser), protocol(protocol), client(client), connection()
         {}
         virtual ~GatewayInterfaceBase() {}
 
@@ -27,6 +28,13 @@ class GatewayInterfaceBase<Side::CLIENT>
 
         PacketParserBase*   getParser() { return (parser); };
         ProtocolBase*       getProtocol() { return (protocol); }
+
+        void                attachToConnection(ClientConnection* connection) { this->connection.push_back(connection); }
+        void                detachFromConnection(unsigned int idx)
+        {
+            if (idx < this->connection.size())
+                this->connection.erase(this->connection.begin() + idx);
+        }
     
     protected:
         PacketParserBase* 	parser;
@@ -34,15 +42,15 @@ class GatewayInterfaceBase<Side::CLIENT>
     
     public:
         Client&             client;
-        ClientConnection&   connection;
+        std::vector<ClientConnection*>    connection;
 };
 
 template<>
 class GatewayInterfaceBase<Side::SERVER>
 {
     public:
-        GatewayInterfaceBase(Server& server, ServerEndpoint& endpoint, PacketParserBase* parser, ProtocolBase* protocol)
-        : parser(parser), protocol(protocol), server(server), endpoint(endpoint)
+        GatewayInterfaceBase(Server& server, PacketParserBase* parser, ProtocolBase* protocol)
+        : parser(parser), protocol(protocol), server(server), endpoint()
         {}
 
         virtual ~GatewayInterfaceBase() {}
@@ -56,13 +64,19 @@ class GatewayInterfaceBase<Side::SERVER>
         PacketParserBase*   getParser() { return (parser); };
         ProtocolBase*       getProtocol() { return (protocol); }
 
+        void                attachToEndpoint(ServerEndpoint* endpoint) { this->endpoint.emplace_back(endpoint); }
+        void                detachFromEndpoint(unsigned int idx)
+        {
+            if (idx < this->endpoint.size())
+                this->endpoint.erase(this->endpoint.begin() + idx);
+        }
     protected:
         PacketParserBase*	parser;
     	ProtocolBase*	    protocol;
 
     public:
         Server&             server;
-        ServerEndpoint&     endpoint;
+        std::vector<ServerEndpoint*>  endpoint;
 };
 
 

@@ -104,12 +104,52 @@ class Client
 	    const sa_family_t family = AF_INET
 	)
 	{
-	    ClientConnection connection = ClientConnection(ip_address, port, family);
+	    // ClientConnection connection = ClientConnection(ip_address, port, family);
+		// this->connections.emplace_back(connection);
+		// ClientConnection& insert = *this->connections.rbegin();
+	    // GatewayInterfaceBase<Side::CLIENT>* interface = new I(*this, insert);
+	    // insert.setInterface(interface);
+	    // insert.connect();
+		// this->_poll_handler.addSocket(insert.getSocket());
+
+		// create interface
+		GatewayInterfaceBase<Side::CLIENT>* interface = new I(*this);
+		// create connection of the interface type
+		ClientConnection connection = ClientConnection(interface, ip_address, port, family);
 		this->connections.emplace_back(connection);
 		ClientConnection& insert = *this->connections.rbegin();
-	    GatewayInterfaceBase<Side::CLIENT>* interface = new I(*this, insert);
-	    insert.setInterface(interface);
-	    insert.connect();
+		
+		// attach connection to the interface
+		interface->attachToConnection(&insert);
+
+		// try connect to the server
+		insert.connect();
+
+		// add to poll handler
+		this->_poll_handler.addSocket(insert.getSocket());
+	}
+
+	template<class I>
+	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, void>::type
+	connect(
+		I& interface,
+	    const std::string& ip_address,
+	    const int port,
+	    const sa_family_t family = AF_INET
+	)
+	{
+		// create connection of the interface type
+		ClientConnection connection = ClientConnection(reinterpret_cast<GatewayInterfaceBase<Side::CLIENT>*>(&interface), ip_address, port, family);
+		this->connections.emplace_back(connection);
+		ClientConnection& insert = *this->connections.rbegin();
+		
+		// attach connection to the interface
+		interface->attachToConnection(&insert);
+
+		// try connect to the server
+		insert.connect();
+
+		// add to poll handler
 		this->_poll_handler.addSocket(insert.getSocket());
 	}
 

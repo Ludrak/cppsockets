@@ -1,21 +1,22 @@
 #include "server/server_endpoint.hpp"
 
+// #ifdef ENABLE_TLS
 
-#ifdef ENABLE_TLS
+// ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
+// : InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS), _clients()
+// {}
 
-ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS, const sa_family_t family)
-: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _parser(nullptr), _useTLS(useTLS), _clients()
+// #else
+
+// ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family)
+// : InetAddress(ip_address, port, family), Socket( /** !!! **/  _interface->getProtocol() /** !!!! **/  ), _interface(nullptr), _clients()
+// {}
+
+// #endif
+
+ServerEndpoint::ServerEndpoint(GatewayInterfaceBase<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family)
+: InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface), _clients()
 {}
-
-#else
-
-ServerEndpoint::ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family)
-: InetAddress(ip_address, port, family), Socket(family), _interface(nullptr), _clients()
-{}
-
-#endif
-
-
 
 
 #ifdef ENABLE_TLS
@@ -102,12 +103,6 @@ void								ServerEndpoint::delClient(int socket)
 	this->_clients.erase(socket);
 }
 
-
-
-void								ServerEndpoint::setInterface(GatewayInterfaceBase<Side::SERVER> *const interface)
-{
-	this->_interface = interface;
-}
 
 GatewayInterfaceBase<Side::SERVER>*	ServerEndpoint::getInterface()
 {
