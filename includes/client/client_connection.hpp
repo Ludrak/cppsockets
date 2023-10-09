@@ -17,16 +17,12 @@ class Client;
 class ClientConnection : public InetAddress, public Socket, public BufferedIO
 {
 	public:
-
-// #ifdef ENABLE_TLS
-// 		ClientConnection(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
-// #else
-// 		ClientConnection(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
-// #endif
-
-
-
-		ClientConnection(GatewayInterfaceBase<Side::CLIENT> *const interface, const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
+		ClientConnection(
+			GatewayInterfaceBase<Side::CLIENT> *const interface,
+			const std::string& ip_address,
+			const int port,
+			const sa_family_t family = AF_INET
+		);
 
 
 

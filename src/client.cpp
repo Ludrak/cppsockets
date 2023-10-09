@@ -224,7 +224,6 @@ bool    Client::_handleClientEvent(const SocketsHandler::socket_event& ev)
 {
     // std::cout << "handle_event" << std::endl;
     try {
-        // TODO move the clients list into the ClientConnection class
         ClientConnection* connection = this->findConnection(ev.socket);
         if (connection == nullptr)
         {

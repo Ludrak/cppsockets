@@ -15,7 +15,7 @@
 // #endif
 
 ServerEndpoint::ServerEndpoint(GatewayInterfaceBase<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family)
-: InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface), _clients()
+: ClientsManager(), InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface)
 {}
 
 
@@ -62,7 +62,7 @@ void    ServerEndpoint::start_listening(const int max_pending_connections) const
 
 void			ServerEndpoint::close()
 {
-	this->_clients.clear();
+	this->clear();
 	this->Socket::close();
 }
 
@@ -74,34 +74,34 @@ void			ServerEndpoint::close()
 
 
 
-ServerClient&						ServerEndpoint::getClient(int socket)
-{
-	return (this->_clients.find(socket)->second);
-}
+// ServerClient&						ServerEndpoint::getClient(int socket)
+// {
+// 	return (this->_clients.find(socket)->second);
+// }
 
-std::map<int, ServerClient>&		ServerEndpoint::getClients()
-{
-	return (this->_clients);
-}
+// std::map<int, ServerClient>&		ServerEndpoint::getClients()
+// {
+// 	return (this->_clients);
+// }
 
 
-ServerClient*						ServerEndpoint::addClient(int socket, const ServerClient& client)
-{
-	// TODO do a better insertion here 
-	std::pair<std::map<int, ServerClient>::iterator, bool> insert = std::make_pair(this->_clients.end(), false);
-	try {
-		insert = this->_clients.insert(std::make_pair(socket, client));
-	} catch (std::exception e)
-	{
-		return (nullptr);
-	}
-	return (&insert.first->second);
-}
+// ServerClient*						ServerEndpoint::addClient(int socket, const ServerClient& client)
+// {
+// 	// TODO do a better insertion here 
+// 	std::pair<std::map<int, ServerClient>::iterator, bool> insert = std::make_pair(this->_clients.end(), false);
+// 	try {
+// 		insert = this->_clients.insert(std::make_pair(socket, client));
+// 	} catch (std::exception e)
+// 	{
+// 		return (nullptr);
+// 	}
+// 	return (&insert.first->second);
+// }
 
-void								ServerEndpoint::delClient(int socket)
-{
-	this->_clients.erase(socket);
-}
+// void								ServerEndpoint::delClient(int socket)
+// {
+// 	this->_clients.erase(socket);
+// }
 
 
 GatewayInterfaceBase<Side::SERVER>*	ServerEndpoint::getInterface()

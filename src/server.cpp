@@ -268,7 +268,6 @@ int    Server::_handleServerEvent(const SocketsHandler::socket_event& ev)
 bool    Server::_handleClientsEvent(const SocketsHandler::socket_event& ev)
 {
     try {
-        // TODO move the clients list into the ServerEndpoint class
         ServerClient* client = this->findClient(ev.socket);
         if (client == nullptr)
         {
@@ -331,7 +330,7 @@ int     Server::_accept(ServerEndpoint& endpoint)
     }
     
     InetAddress     addr_info = InetAddress(client_addr);
-    ServerClient*   client = endpoint.addClient(client_socket, ServerClient(endpoint, client_socket, addr_info));
+    ServerClient*   client = endpoint.addClient(ServerClient(endpoint, client_socket, addr_info));
     if (client == nullptr)
     {
         std::cout << "Client insertion in std::map failed on endpoint " << endpoint.getHostname() << " for client just arrived from "  << addr_info.getHostname() << std::endl;

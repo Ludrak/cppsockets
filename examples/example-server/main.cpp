@@ -23,13 +23,13 @@ class ExampleInterface : public GatewayInterface<Side::SERVER, Packets::RAW>
 
 		void onConnected(ServerClient& client) override
 		{
-			std::cout << "Client connected on endpoint " << this->endpoint[0]->getHostname() << " from " << client.getHostname() << std::endl;
+			std::cout << "Client connected on endpoint " << client.getEndpoint().getHostname() << " from " << client.getHostname() << std::endl;
 			this->emit(client, "Hi\n");
 		}
 
 		void onDisconnected(ServerClient& client) override
 		{
-			std::cout << "Client disconnected from endpoint " << this->endpoint[0]->getHostname() << " from " << client.getHostname() << std::endl;
+			std::cout << "Client disconnected from endpoint " << client.getEndpoint().getHostname() << " from " << client.getHostname() << std::endl;
 		}
 };
 

@@ -12,28 +12,19 @@
 #include "common/interfaces/gateway_interface.hpp"
 #include "common/protocols/protocol.hpp"
 
+#include "server/clients_manager.hpp"
+
 class ServerClient;
 
-class ServerEndpoint : public InetAddress, public Socket
+class ServerEndpoint : protected ClientsManager, public InetAddress, public Socket
 {
 	public:
-
-// #ifdef ENABLE_TLS
-// 		ServerEndpoint(const std::string& ip_address, const int port, const bool useTLS = false, const sa_family_t family = AF_INET);
-// #else
-// 		ServerEndpoint(const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
-// #endif
-
-		ServerEndpoint(GatewayInterfaceBase<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family = AF_INET);
-
-
-		// those should only be called by the server
-		// maybe move to protected and friend class w/ server
-		ServerClient&						getClient(int socket);
-		std::map<int, ServerClient>&		getClients();
-
-		ServerClient*						addClient(int socket, const ServerClient& client);
-		void								delClient(int socket);
+		ServerEndpoint(
+			GatewayInterfaceBase<Side::SERVER> *const interface,
+			const std::string& ip_address,
+			const int port,
+			const sa_family_t family = AF_INET
+		);
 
 
 #ifdef ENABLE_TLS
@@ -64,7 +55,8 @@ class ServerEndpoint : public InetAddress, public Socket
 		bool    _useTLS;
 #endif
 		GatewayInterfaceBase<Side::SERVER>*			_interface;
-		std::map<int, ServerClient>					_clients;
+
+		friend class Server;
 };
 
 #include "server_client.hpp"
