@@ -44,9 +44,6 @@ endif (use-ssl)
 set(CMAKE_SOURCE_DIR ./src)
 
 include_directories(./includes)
-#TODO delete
-include_directories(./examples/includes)
-
 
 add_library(cppsockets STATIC
 	# socket handlers
@@ -73,6 +70,7 @@ add_library(cppsockets STATIC
 	# server
 	src/server/server_endpoint.cpp
 	src/server/server_client.cpp
+	src/server/clients_manager.cpp
 	src/server.cpp
 )
 

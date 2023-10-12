@@ -2,10 +2,16 @@
 
 #include <string>
 #include <queue>
+// #include "protocols/tcp/interface.hpp"
 
 // later rename to BufferedIO
 class BufferedIO
 {
+    // friend with class that handles io buffering to mask fields in client_type.data
+    // friend class ProtocolMethod<Side::CLIENT, Protocols::Application::MESSAGES>;
+    // friend class ProtocolMethod<Side::SERVER, Protocols::Application::MESSAGES>;
+
+    // move field to private to remove access from other classes than friend
     public:
         /* RECEIVING */
         // appends the receive buffer with the provided buffer

@@ -23,15 +23,15 @@ class InetAddress
         // Constructs a new sockaddr depending on family (i.e. for initialisation of struct sockaddr)
         InetAddress(const std::string& hostname, const int port, const sa_family_t family = AF_INET);
 
-        std::string         getHostname() const;
+        inline std::string  getHostname() const;
 
-        std::string         getIpAddress() const;
-        int                 getPort() const;
+        inline std::string  getIpAddress() const;
+        inline int          getPort() const;
 
-        sa_family_t         getAddressFamily() const;
+        inline sa_family_t  getAddressFamily() const;
 
-        sockaddr_in         getAddress4() const;
-        sockaddr_in6        getAddress6() const;
+        inline sockaddr_in  getAddress4() const;
+        inline sockaddr_in6 getAddress6() const;
     
 
     private:
@@ -51,4 +51,36 @@ class InetAddress
         struct sockaddr_in6 _address_6;
         sa_family_t         _address_family;
 };
+
+
+inline std::string		InetAddress::getHostname() const
+{
+	return (this->_hostname + "(" + this->_ip_address + ")");
+}
+
+inline std::string		InetAddress::getIpAddress() const
+{
+	return (this->_ip_address);
+}
+
+inline int				InetAddress::getPort() const
+{
+	return (this->_port);
+}
+
+inline sa_family_t		InetAddress::getAddressFamily() const
+{
+	return (this->_address_family);
+}
+
+inline sockaddr_in		InetAddress::getAddress4() const
+{
+	return (this->_address_4);
+}
+
+inline sockaddr_in6	InetAddress::getAddress6() const
+{
+	return (this->_address_6);
+}
+
 

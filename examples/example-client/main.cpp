@@ -1,17 +1,18 @@
 #include "client.hpp"
-#include "packets/raw/gateway_interface.hpp"
+#include "protocols/tcp/interface.hpp"
 
-class ClientInterface : public GatewayInterface<Side::CLIENT, Packets::RAW>
+class ClientInterface : public GatewayInterface<Side::CLIENT, Protocols::Transport::TCP>
 {
     public:
     ClientInterface(Client& client)
     : GatewayInterface(client)
     {}
 
-    void onReceived(const std::string& message)
+    void onReceived(connection_type* connection, const std::string& message) override
     {
+        (void) connection;
         std::cout << "Server sent : '" << message << "'" << std::endl;
-        this->emit("Hey !");
+       // this->emit("Hey !");
 
     }
 };
@@ -35,7 +36,7 @@ int main()
 
     while (client->wait_update())
     {
-
+        std::cout << "*** loop ***" << std::endl;
     }
 
     delete client;

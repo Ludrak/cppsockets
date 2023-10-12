@@ -22,7 +22,7 @@ Client::Client(void)
 /* this call can throw if one of the connections contains an invalid address */
 /* and thus needs to be catched.                                           */
 /* If TLS is enabled, it can also throw a SSLInitException.                */
-Client::Client(const std::list<ClientConnection>& connections)
+Client::Client(const std::list<IClientConnection*>& connections)
 : connections(connections)
 #ifdef ENABLE_TLS
     ,_ssl_method(TLS_client_method())
@@ -118,21 +118,21 @@ bool    Client::wait_update(const int timeout_ms) noexcept
 
 
 // finds a client by searching all the connections
-ClientConnection* Client::findConnection(int socket)
+IClientConnection* Client::findConnection(int socket)
 {
-    for (ClientConnection& c: this->connections)
+    for (IClientConnection* c: this->connections)
     {
-        if (c.getSocket() == socket)
-            return (&c);
+        if (c->getSocket() == socket)
+            return (c);
     }
     return (nullptr);
 }
 
-void    Client::sendData(ClientConnection& connection, const void* data, size_t data_size)
+void    Client::sendData(IClientConnection* connection, const void* data, size_t data_size)
 {
-    std::cout << "queued emit to " << connection.getHostname() << std::endl;
-    connection.appendSendBuffer(reinterpret_cast<const uint8_t*>(data), data_size);
-    this->_poll_handler.socketWantsWrite(connection.getSocket(), true);
+    std::cout << "queued emit to " << connection->getHostname() << std::endl;
+    connection->appendSendBuffer(reinterpret_cast<const uint8_t*>(data), data_size);
+    this->_poll_handler.socketWantsWrite(connection->getSocket(), true);
 }
 
 /* ================================================ */
@@ -140,22 +140,23 @@ void    Client::sendData(ClientConnection& connection, const void* data, size_t 
 /* ================================================ */
 
 /* disconnects the specified client from the server*/
-void    Client::closeConnection(ClientConnection& connection)
+void    Client::closeConnection(IClientConnection* connection)
 {
-    int socket = connection.getSocket();
-    std::string address = connection.getHostname();
+    int socket = connection->getSocket();
+    std::string address = connection->getHostname();
 
 #ifdef ENABLE_TLS
-    if (connection._useTLS && connection._ssl_connection != nullptr)
+    if (connection->_useTLS && connection->_ssl_connection != nullptr)
     {
-        SSL_free(connection._ssl_connection);
-        connection._ssl_connection = nullptr;
+        SSL_free(connection->_ssl_connection);
+        connection->_ssl_connection = nullptr;
     }
 #endif
 
-    connection.getInterface()->onDisconnected();
-    this->_poll_handler.delSocket(connection.getSocket());
-    connection.close();
+    connection->getInterface()->onDisconnected(connection);
+    connection->getInterface()->detachFromConnection(connection->getSocket());
+    this->_poll_handler.delSocket(connection->getSocket());
+    connection->close();
 
     ::close(socket);
     // LOG_INFO(LOG_CATEGORY_NETWORK, "connection to " << address << " closed");
@@ -164,8 +165,8 @@ void    Client::closeConnection(ClientConnection& connection)
 /* shutdowns the server an closes all connections */
 void    Client::shutdown()
 {
-    for (ClientConnection& connection : this->connections)
-        connection.close();
+    for (IClientConnection* connection : this->connections)
+        connection->close();
 }
 
 
@@ -224,7 +225,7 @@ bool    Client::_handleClientEvent(const SocketsHandler::socket_event& ev)
 {
     // std::cout << "handle_event" << std::endl;
     try {
-        ClientConnection* connection = this->findConnection(ev.socket);
+        IClientConnection* connection = this->findConnection(ev.socket);
         if (connection == nullptr)
         {
             // std::cout << "No connection found for Client::_handleClientsEvent" << std::endl;
@@ -233,17 +234,17 @@ bool    Client::_handleClientEvent(const SocketsHandler::socket_event& ev)
     
         if (EV_IS_ERROR(ev))
         {
-            this->closeConnection(*connection);
+            this->closeConnection(connection);
             return (false);
         }
         if (EV_IS_READABLE(ev))
         {
-            if (this->_receive(*connection) == false)
+            if (this->_receive(connection) == false)
             return (false);
         }
         if (EV_IS_WRITABLE(ev))
         {
-            this->_send_data(*connection);
+            this->_send_data(connection);
         }
     } catch (std::out_of_range& e)
     {
@@ -278,30 +279,31 @@ bool    Client::_handleClientEvent(const SocketsHandler::socket_event& ev)
 /* ================================================ */
 
 // must at least be sizeof(packet_data_header) (or sizeof(size_t) + 32)
-bool     Client::_receive(ClientConnection& connection)
+bool     Client::_receive(IClientConnection* connection)
 {
-    uint8_t buffer[RECV_BLK_SIZE] = {0};
-#ifdef ENABLE_TLS
-    ssize_t size;
-    if (connection._useTLS)
-    {
-        if (!connection._accept_done)
-        {
-            // TODO
-            // if (this->_ssl_do_accept(connection) == -1)
-            // {
-            //     this->disconnect(connection);
-            //     return false;
-            // }
-            return (true);
-        }
-        size = SSL_read(connection._ssl_connection, buffer, RECV_BLK_SIZE);
-    }
-    else
-        size = recv(connection.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
-#else
-    ssize_t size = recv(connection.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
-#endif
+    // uint8_t buffer[RECV_BLK_SIZE] = {0};
+// #ifdef ENABLE_TLS
+//     ssize_t size;
+//     if (connection._useTLS)
+//     {
+//         if (!connection._accept_done)
+//         {
+//             // TODO
+//             // if (this->_ssl_do_accept(connection) == -1)
+//             // {
+//             //     this->disconnect(connection);
+//             //     return false;
+//             // }
+//             return (true);
+//         }
+//         size = SSL_read(connection._ssl_connection, buffer, RECV_BLK_SIZE);
+//     }
+//     else
+//         size = recv(connection.getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
+// #else
+    // ssize_t size = recv(connection->getSocket(), buffer, RECV_BLK_SIZE, MSG_DONTWAIT);
+    ssize_t size = connection->getInterface()->getProtocol()->receiveMethod(connection);
+// #endif
     std::cout << "recv" << std::endl;
     if (size == 0)
     {
@@ -316,89 +318,87 @@ bool     Client::_receive(ClientConnection& connection)
         return (false);
     }
 
-    std::cout << "appendBuff" << std::endl;
-    // append the received buffer
-    connection.appendRecvBuffer(buffer, size);
+    /*****  SHOULD NOW BE HANDELED BY ProtocolMethod<Protocols::Application::MESSAGES>*******/
+    // std::cout << "appendBuff" << std::endl;
+    // // append the received buffer
+    // connection.appendRecvBuffer(buffer, size);
 
-    // evaluate the whole buffer
-    std::cout << "evalResult" << std::endl;
-    PacketParserBase::EvalResult eval = connection.getInterface()->getParser()->eval(connection.getRecvBuffer().c_str(), connection.getRecvSize());
-    switch (eval)
-    {
-        case PacketParserBase::EvalResult::COMPLETE:
-            std::cout << "COMPLETE" << std::endl;
-            // connection.getRecvSize() Should be the size of the parsed packet, calculated by eval
-            connection.getInterface()->receive(connection.getInterface()->getParser()->parse(connection.getRecvBuffer().c_str(), connection.getRecvSize()));
-            std::cout << "clearBuff" << std::endl;
-            connection.clearRecvBuffer(connection.getRecvSize());
-            break; 
-        case PacketParserBase::EvalResult::INCOMPLETE:
-            // incomplete packet, more data expected to be received, for now, do nothing
-            // maybe add a "packet timeout" to deal with incomplete packets tails that will never arrive
-            break; 
-        case PacketParserBase::EvalResult::INVALID:
-            // packet is invalid, clear all data
-            // this might also clear the start of the next packet if received early
-            // this would make the next packet also invalid
-            connection.clearRecvBuffer();
-            break; 
-    }
-    std::cout << "after recv" << std::endl;
+    // // evaluate the whole buffer
+    // std::cout << "evalResult" << std::endl;
+    // IPacketParser::EvalResult eval = connection.getInterface()->getParser()->eval(connection.getRecvBuffer().c_str(), connection.getRecvSize());
+    // switch (eval)
+    // {
+    //     case IPacketParser::EvalResult::COMPLETE:
+    //         std::cout << "COMPLETE" << std::endl;
+    //         // connection.getRecvSize() Should be the size of the parsed packet, calculated by eval
+    //         connection.getInterface()->receive(connection.getInterface()->getParser()->parse(connection.getRecvBuffer().c_str(), connection.getRecvSize()));
+    //         std::cout << "clearBuff" << std::endl;
+    //         connection.clearRecvBuffer(connection.getRecvSize());
+    //         break; 
+    //     case IPacketParser::EvalResult::INCOMPLETE:
+    //         // incomplete packet, more data expected to be received, for now, do nothing
+    //         // maybe add a "packet timeout" to deal with incomplete packets tails that will never arrive
+    //         break; 
+    //     case IPacketParser::EvalResult::INVALID:
+    //         // packet is invalid, clear all data
+    //         // this might also clear the start of the next packet if received early
+    //         // this would make the next packet also invalid
+    //         connection.clearRecvBuffer();
+    //         break; 
+    // }
+    // std::cout << "after recv" << std::endl;
     return (true);
 }
 
 
 
 // Sends the data queued for client, returns true if data was flushed entierly.
-bool    Client::_send_data(ClientConnection& connection)
+bool    Client::_send_data(IClientConnection* connection)
 {
     std::cout << "send_data" << std::endl;
-    if (connection.getSendSize() == 0)
+    if (connection->getSendSize() == 0)
     {
-        //LOG_ERROR(LOG_CATEGORY_NETWORK, "fd_set was set for sending for connection from " << connection.getHostname() << " however no data is provider to send.")
-        this->_poll_handler.socketWantsWrite(connection.getSocket(), false);
+        //LOG_ERROR(LOG_CATEGORY_NETWORK, "fd_set was set for sending for connection from " << connection->getHostname() << " however no data is provider to send.")
+        this->_poll_handler.socketWantsWrite(connection->getSocket(), false);
         return false;
     }
-    //LOG_INFO(LOG_CATEGORY_NETWORK, "emitting to connection from " << connection.getHostname());
+    //LOG_INFO(LOG_CATEGORY_NETWORK, "emitting to connection from " << connection->getHostname());
 #ifdef ENABLE_TLS
     ssize_t sent_bytes;
-    if (connection._useTLS)
+    if (connection->_useTLS)
     {
-        if (!connection._accept_done)
+        if (!connection->_accept_done)
         {
-            // LOG_WARN(LOG_CATEGORY_NETWORK, "Attempting to emit to TLS connection from " << connection.getHostname() << " which is not yet accepted, setting emit for later...");
+            // LOG_WARN(LOG_CATEGORY_NETWORK, "Attempting to emit to TLS connection from " << connection->getHostname() << " which is not yet accepted, setting emit for later...");
             return false;
         }
-        sent_bytes = SSL_write(connection._ssl_connection, connection.getSendBuffer().c_str(), connection.getSendSize());
+        sent_bytes = SSL_write(connection->_ssl_connection, connection->getSendBuffer().c_str(), connection->getSendSize());
     }
     else
-        sent_bytes = send(connection.getSocket(), connection.getSendBuffer().c_str(), connection.getSendSize(), 0);
+        sent_bytes = send(connection->getSocket(), connection->getSendBuffer().c_str(), connection->getSendSize(), 0);
 #else
-    ssize_t sent_bytes = send(connection.getSocket(), connection.getSendBuffer().c_str(), connection.getSendSize(), 0);
+    //ssize_t sent_bytes = send(connection->getSocket(), connection->getSendBuffer().c_str(), connection->getSendSize(), 0);
+    ssize_t sent_bytes = connection->getInterface()->getProtocol()->sendMethod(connection, connection->getSendBuffer().c_str(), connection->getSendSize());
     std::cout << "send" << std::endl;
 #endif
     if (sent_bytes < 0)
     {
-        // LOG_WARN(LOG_CATEGORY_NETWORK, "Send to connection from " << connection.getHostname() << " failed with error: " << std::strerror(errno))
-        connection.clearSendBuffer();
-        if (connection.getSendSize() == 0)
-            this->_poll_handler.socketWantsWrite(connection.getSocket(), false);
+        // LOG_WARN(LOG_CATEGORY_NETWORK, "Send to connection from " << connection->getHostname() << " failed with error: " << std::strerror(errno))
+        connection->clearSendBuffer();
+        if (connection->getSendSize() == 0)
+            this->_poll_handler.socketWantsWrite(connection->getSocket(), false);
         return false;
     }
-    else if (sent_bytes == 0)
+    else if (sent_bytes != 0)
     {
-        // LOG_WARN(LOG_CATEGORY_NETWORK, "sent 0 bytes of data to connection from " << connection.getHostname());
+        connection->clearSendBuffer(sent_bytes); 
+        // LOG_INFO(LOG_CATEGORY_NETWORK, "Data sent to connection from " << connection->getHostname()<< " was cropped: " << connection->_data_to_send.top().length() << " bytes left to send");
         return false;
-    }
-    else if ((size_t)sent_bytes != connection.getSendSize())
-    {
-        connection.clearSendBuffer(sent_bytes); 
-        // LOG_INFO(LOG_CATEGORY_NETWORK, "Data sent to connection from " << connection.getHostname()<< " was cropped: " << connection._data_to_send.top().length() << " bytes left to send");
-        return false;
-    }
+    } 
+
     // sent full packet.
-    connection.clearSendBuffer();
-    if (connection.getSendSize() == 0)
-        this->_poll_handler.socketWantsWrite(connection.getSocket(), false);
+    connection->clearSendBuffer();
+    if (connection->getSendSize() == 0)
+        this->_poll_handler.socketWantsWrite(connection->getSocket(), false);
     return (true);
 }

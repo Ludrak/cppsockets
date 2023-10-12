@@ -4,32 +4,52 @@
 # define USE_SELECT
 
 # include "server.hpp"
-# include "packets/raw/gateway_interface.hpp"
+# include "protocols/tcp/interface.hpp"
 
 
-class ExampleInterface : public GatewayInterface<Side::SERVER, Packets::RAW>
+# include "common/data/data.hpp"
+
+
+// class ClientDataExample
+// {
+// 	int a;
+// 	int b;
+// 	int c;
+// };
+
+
+class ExampleInterface : public GatewayInterface<Side::SERVER, Protocols::Transport::TCP>
 {
+		// typedef ServerClient<client_data_type, Data<> > client_type;
 	public:
 		ExampleInterface(Server& server)
 		: GatewayInterface(server)
 		{
 		}
 
-		void onReceived(ServerClient& client, const std::string& message) override
+		void onReceived(client_type* client, const std::string& message) override
 		{
-			std::cout << "Received from " << client.getHostname() << " : " << '\'' << message << '\'' << std::endl;
-			this->emit(client, "Received: '" + message + "'\n");
+			std::cout << "Received from " << client->getHostname() << " : " << '\'' << message << '\'' << std::endl;
+			
+			// this->emit(client, "Received: '" + message + "'\n");
+			//client->a = 10;
 		}
 
-		void onConnected(ServerClient& client) override
+		void onConnected(client_type* client) override
 		{
-			std::cout << "Client connected on endpoint " << client.getEndpoint().getHostname() << " from " << client.getHostname() << std::endl;
-			this->emit(client, "Hi\n");
+			std::cout << "on USER SPACE " << client->getEndpoint() << std::endl;
+
+			std::cout << "Client connected on endpoint " << client->getEndpoint()->getHostname() << " from " << client->getHostname() << std::endl;
+			// this->emit(client, "Hi\n");
+
+			//client->getAddress4();
+
+			//client->data
 		}
 
-		void onDisconnected(ServerClient& client) override
+		void onDisconnected(client_type* client) override
 		{
-			std::cout << "Client disconnected from endpoint " << client.getEndpoint().getHostname() << " from " << client.getHostname() << std::endl;
+			std::cout << "Client disconnected from endpoint " << client->getEndpoint()->getHostname() << " from " << client->getHostname() << std::endl;
 		}
 };
 
@@ -87,11 +107,20 @@ int main(int ac, char** av)
 	server->addEndpoint(interface, "localhost", 9000);
 	server->addEndpoint(interface, "localhost", 8000);
 
-	server->start_listening();
+	std::cout << "added endpoints" << std::endl;
+
+	// server->start_listening();
 	while (server->wait_update())
 	{
-		std::cout << "Server loop" << std::endl;
+		std::cout << "*** loop ***" << std::endl;
 	}
+
+	std::cout << "wait_update() returned false" << std::endl;
+	
+	// ExampleInterface it = ExampleInterface(*server);
+	// ServerEndpoint   ep = ServerEndpoint(&it, "localhost", 10000);
+	// InetAddress addr = InetAddress("localhost", 10000);
+	// ServerClient     client = ServerClient(ep, ServerClient::createData<MyClientData>, 3, addr);
 	
 
 	delete server;

@@ -1,7 +1,7 @@
 #pragma once
 
-enum class Packets
-{
-    RAW,
-    MESSAGES
-};
+// enum class Packets
+// {
+//     RAW,
+//     MESSAGES
+// };

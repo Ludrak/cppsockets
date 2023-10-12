@@ -52,35 +52,35 @@ InetAddress::InetAddress(const std::string& hostname, const int port, const sa_f
 }
 
 
-std::string		InetAddress::getHostname() const
-{
-	return (this->_hostname + "(" + this->_ip_address + ")");
-}
+// std::string		InetAddress::getHostname() const
+// {
+// 	return (this->_hostname + "(" + this->_ip_address + ")");
+// }
 
-std::string		InetAddress::getIpAddress() const
-{
-	return (this->_ip_address);
-}
+// std::string		InetAddress::getIpAddress() const
+// {
+// 	return (this->_ip_address);
+// }
 
-int				InetAddress::getPort() const
-{
-	return (this->_port);
-}
+// int				InetAddress::getPort() const
+// {
+// 	return (this->_port);
+// }
 
-sa_family_t		InetAddress::getAddressFamily() const
-{
-	return (this->_address_family);
-}
+// sa_family_t		InetAddress::getAddressFamily() const
+// {
+// 	return (this->_address_family);
+// }
 
-sockaddr_in		InetAddress::getAddress4() const
-{
-	return (this->_address_4);
-}
+// sockaddr_in		InetAddress::getAddress4() const
+// {
+// 	return (this->_address_4);
+// }
 
-sockaddr_in6	InetAddress::getAddress6() const
-{
-	return (this->_address_6);
-}
+// sockaddr_in6	InetAddress::getAddress6() const
+// {
+// 	return (this->_address_6);
+// }
 
 
 void			InetAddress::_get_addr_by_hostname(sockaddr *const addr, const socklen_t addr_len, std::string& ip_address, const std::string &hostname, const sa_family_t host_family)

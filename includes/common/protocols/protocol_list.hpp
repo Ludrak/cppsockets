@@ -1,8 +1,27 @@
 #pragma once
 
-enum class Protocol
+// enum class Protocol
+// {
+//     RAW,
+//     TCP,
+//     UDP
+// };
+
+struct Protocols
 {
-    RAW,
-    TCP,
-    UDP
+    struct Transport
+    {
+        struct TCP {};
+        struct UDP {};
+    };
+
+    struct Presentation
+    {
+        struct TLS {};
+    };
+
+    struct Application
+    {
+        struct MESSAGES {};
+    };
 };

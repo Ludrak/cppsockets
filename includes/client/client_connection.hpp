@@ -14,15 +14,36 @@
 
 class Client;
 
-class ClientConnection : public InetAddress, public Socket, public BufferedIO
+
+class IClientConnection :  public InetAddress, public Socket<Side::CLIENT>, public BufferedIO
 {
 	public:
-		ClientConnection(
-			GatewayInterfaceBase<Side::CLIENT> *const interface,
+		IClientConnection(
+			IProtocolMethod<Side::CLIENT> *const method,
 			const std::string& ip_address,
 			const int port,
 			const sa_family_t family = AF_INET
-		);
+		) : InetAddress(ip_address, port, family), Socket(method) //, BufferedIO()
+		{}
+
+		virtual void	connect() const = 0;
+		virtual void	close() = 0;
+
+
+		virtual IGatewayInterface<Side::CLIENT>*	getInterface() = 0;
+};
+
+template<class Proto, class ...T>
+class ClientConnection : public IClientConnection
+{
+	public:
+		ClientConnection(
+			GatewayInterface<Side::CLIENT, Proto>* interface,
+			const std::string& ip_address,
+			const int port,
+			const sa_family_t family = AF_INET
+		) : IClientConnection(interface->getProtocol(), ip_address, port, family), _interface(interface), data()
+		{}
 
 
 
@@ -33,11 +54,46 @@ class ClientConnection : public InetAddress, public Socket, public BufferedIO
         std::string                         getCertificate();
 #endif
 
-		void    							connect() const;
-		void								close();
+
+
+		void    							connect() const override
+		{
+			if (this->_address_family == AF_INET)
+			{
+				if (::connect(this->getSocket(), (sockaddr*)(&this->_address_4), sizeof(this->_address_4)) != 0)
+				{
+					// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address initialization on port " << this->_port << ": " << strerror(errno));
+					throw ConnectException();
+				}
+			}
+			else if (this->_address_family == AF_INET6)
+			{
+				if (::connect(this->getSocket(), (sockaddr*)(&this->_address_6), sizeof(this->_address_6)) != 0)
+				{
+					// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address on IPv6 initialization on port " << this->_port << ": " << strerror(errno));
+					throw ConnectException();
+				}
+			}
+		#ifdef ENABLE_TLS
+			if (this->_useTLS)
+				;// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on TLS endpoint " <<  this->getHostname() << " on port " << this->_port)
+			else
+		#endif
+			// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on endpoint " << this->getHostname() << " on port " << this->_port)
+			std::cout << "Connected to " << this->getHostname() << " on port " << this->_port << std::endl;
+		}
+
+		void								close() override
+		{
+			this->Socket::close();
+		}
+
 
 		// switches the current interface of the endpoint
-		GatewayInterfaceBase<Side::CLIENT>*	getInterface();
+		IGatewayInterface<Side::CLIENT>*	getInterface() override
+		{
+			return reinterpret_cast<IGatewayInterface<Side::CLIENT>*>(this->_interface);
+		}
 
 		class ConnectException : public std::logic_error
 		{
@@ -53,5 +109,8 @@ class ClientConnection : public InetAddress, public Socket, public BufferedIO
         bool        _accept_done;
 #endif
 
-		GatewayInterfaceBase<Side::CLIENT>*			_interface;
+		GatewayInterface<Side::CLIENT, Proto>*	_interface;
+
+	public:
+		Data<T...>	data;
 };

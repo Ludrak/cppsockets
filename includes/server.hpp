@@ -51,7 +51,7 @@ class Server
 	/* this call can throw if one of the endpoints contains an invalid address */
 	/* and thus needs to be catched.                                           */
 	/* If TLS is enabled, it can also throw a SSLInitException.                */
-	Server(const std::list<ServerEndpoint>& endpoints);
+	Server(const std::list<IServerEndpoint*>& endpoints);
 
 	/* Server constructor for single endpoint                                  */
 	/* this call can throw if the endpoint contains an invalid address.        */
@@ -59,7 +59,7 @@ class Server
 	template<class I>
 #ifdef ENABLE_TLS
 	Server(
-			typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, const std::string&>::type
+			typename std::enable_if<std::is_base_of<IGatewayInterface<Side::SERVER>, I>::value, const std::string&>::type
 			ip_address,
 			const int port,
 			const bool useTLS,
@@ -70,7 +70,7 @@ class Server
 	}
 #else
 	Server(
-			typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, const std::string&>::type
+			typename std::enable_if<std::is_base_of<IGatewayInterface<Side::SERVER>, I>::value, const std::string&>::type
 			ip_address,
 			const int port,
 			const sa_family_t family)
@@ -93,7 +93,7 @@ class Server
 
 		/* Adds a new ServerEndpoint with the provided GatewayInterface                                                                */
 	template<class I>
-	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, void>::type
+	typename std::enable_if<std::is_base_of<IGatewayInterface<Side::SERVER>, I>::value, void>::type
 	addEndpoint(
 	    const std::string& ip_address,
 	    const int port,
@@ -101,17 +101,25 @@ class Server
 	)
 	{
 	    // create the interface
-	    GatewayInterfaceBase<Side::SERVER>* interface = new I(*this);
+	    //IGatewayInterface<Side::SERVER>* interface = new I(*this);
+		I* interface = new I(*this);
+
 		// create an endpoint for this interface
-		ServerEndpoint endpoint = ServerEndpoint(interface, ip_address, port, family);
-		this->endpoints.emplace_back(endpoint);
+		ServerEndpoint<typename I::protocol_type> *endpoint = new ServerEndpoint<typename I::protocol_type>(interface, ip_address, port, family);
+		// this->endpoints.emplace_back(endpoint);
+		endpoint->start_listening(10);
+		this->endpoints.insert(std::make_pair(endpoint->getSocket(), reinterpret_cast<IServerEndpoint*>(endpoint)));
+        this->_poll_handler.addSocket(endpoint->getSocket());
 
 		// attach the interface to the endpoint
-		interface->attachToEndpoint(&(*this->endpoints.rbegin()));
+		// interface->attachToEndpoint(&(*this->endpoints.rbegin()));
+		interface->attachToEndpoint(endpoint);
+
+		this->running = true;
 	}
 
 	template<class I>
-	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::SERVER>, I>::value, void>::type
+	typename std::enable_if<std::is_base_of<IGatewayInterface<Side::SERVER>, I>::value, void>::type
 	addEndpoint(
 		I& interface,
 	    const std::string& ip_address,
@@ -120,11 +128,19 @@ class Server
 	)
 	{
 		// create an endpoint for the specified interface
-		ServerEndpoint endpoint = ServerEndpoint(reinterpret_cast<GatewayInterfaceBase<Side::SERVER>*>(&interface), ip_address, port, family);
-		this->endpoints.emplace_back(endpoint);
+		// ServerEndpoint endpoint = ServerEndpoint(reinterpret_cast<IGatewayInterface<Side::SERVER>*>(&interface), ip_address, port, family);
+		ServerEndpoint<typename I::protocol_type> *endpoint = new ServerEndpoint<typename I::protocol_type>(&interface, ip_address, port, family);
+		endpoint->start_listening(10); // todo max_pending_connections
+		this->endpoints.insert(std::make_pair(endpoint->getSocket(), reinterpret_cast<IServerEndpoint*>(endpoint)));
+        this->_poll_handler.addSocket(endpoint->getSocket());
+		//
+		//this->endpoints//.emplace_back(endpoint);
 
 		// attach the interface to the endpoint
-		interface.attachToEndpoint(&(*this->endpoints.rbegin()));
+		// interface.attachToEndpoint(&(*this->endpoints.rbegin()));
+		interface.attachToEndpoint(endpoint);
+
+		this->running = true;
 	}
 
 	/* Makes the server starts listening,                                          */
@@ -152,18 +168,18 @@ class Server
 	/* ================================================ */
 
 	/* disconnects the specified client from the server*/
-	bool    disconnect(ServerClient& client);
+	bool    disconnect(IServerClient* client);
 
 	/* shutdowns the server an closes all connections */
 	void    shutdown();
 
 	// finds a client by searching all the endpoints
 	// this is quite slow 
-	ServerClient* findClient(int socket);
+	IServerClient* findClient(int socket);
 
 	// queues data to be sent to client 
 	// this call must be used by a protocol to emit their formatted data
-	void    sendData(ServerClient& client, const void *data, size_t data_size);
+	void    sendData(IServerClient* client, const void *data, size_t data_size);
 
 
     /* ================================================ */
@@ -189,7 +205,7 @@ class Server
 	/* Accept Handlers                                  */
 	/* ================================================ */
 
-	int     _accept(ServerEndpoint& endpoint);
+	int     _accept(IServerEndpoint* endpoint);
 	
 
 	// TODO REFRACTOR FOR NEW ENDPOINTS
@@ -216,10 +232,10 @@ class Server
 // must at least be sizeof(packet_data_header) (or sizeof(size_t) + 32)
 // TODO MOVE THIS ELSEWHERE MORE VISIBLE
 #define RECV_BLK_SIZE   1024
-	bool     _receive(ServerClient& from);
+	bool     _receive(IServerClient* from);
 
 	// Sends the data queued for client, returns true if data was flushed entierly.
-	bool    _send_data(ServerClient& client);
+	bool    _send_data(IServerClient* client);
 
 
     /* ================================================ */
@@ -227,7 +243,8 @@ class Server
     /* ================================================ */
 
     public:
-	std::list<ServerEndpoint>   endpoints;
+	//std::list<ServerEndpoint>   endpoints;
+	std::map<int, IServerEndpoint*>	endpoints;
 
 	bool        running;
 	int         n_clients_connected;

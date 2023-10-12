@@ -50,7 +50,7 @@ class Client
 	/* this call can throw if one of the connectiond contains an invalid address */
 	/* and thus needs to be catched.                                             */
 	/* If TLS is enabled, it can also throw a SSLInitException.                  */
-	Client(const std::list<ClientConnection>& connections);
+	Client(const std::list<IClientConnection*>& connections);
 
 	/* Client constructor for single connection                                  */
 	/* this call can throw if the connection contains an invalid address.        */
@@ -63,7 +63,7 @@ class Client
 	template<class I>
 #ifdef ENABLE_TLS
 	Client(
-		typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, const std::string&>::type
+		typename std::enable_if<std::is_base_of<IGatewayInterface<Side::CLIENT>, I>::value, const std::string&>::type
 		ip_address,
 		const int port,
 		const bool useTLS,
@@ -74,7 +74,7 @@ class Client
 	}
 #else
 	Client(
-		typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, const std::string&>::type
+		typename std::enable_if<std::is_base_of<IGatewayInterface<Side::CLIENT>, I>::value, const std::string&>::type
 		ip_address,
 		const int port,
 		const sa_family_t family)
@@ -97,7 +97,7 @@ class Client
 
 	/* Adds a new ClientConnection with the provided GatewayInterface             */
 	template<class I>
-	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, void>::type
+	typename std::enable_if<std::is_base_of<IGatewayInterface<Side::CLIENT>, I>::value, void>::type
 	connect(
 	    const std::string& ip_address,
 	    const int port,
@@ -112,25 +112,27 @@ class Client
 	    // insert.connect();
 		// this->_poll_handler.addSocket(insert.getSocket());
 
+		I* interface = new I(*this);
+
 		// create interface
-		GatewayInterfaceBase<Side::CLIENT>* interface = new I(*this);
+		// IGatewayInterface<Side::CLIENT>* interface = new I(*this);
 		// create connection of the interface type
-		ClientConnection connection = ClientConnection(interface, ip_address, port, family);
-		this->connections.emplace_back(connection);
-		ClientConnection& insert = *this->connections.rbegin();
+		ClientConnection<typename I::protocol_type, typename I::protocol_data_type>* connection = new ClientConnection<typename I::protocol_type, typename I::protocol_data_type>(interface, ip_address, port, family);
+		this->connections.emplace_back(reinterpret_cast<IClientConnection*>(connection));
+		IClientConnection* insert = *this->connections.rbegin();
 		
 		// attach connection to the interface
-		interface->attachToConnection(&insert);
+		interface->attachToConnection(insert);
 
 		// try connect to the server
-		insert.connect();
+		insert->connect();
 
 		// add to poll handler
-		this->_poll_handler.addSocket(insert.getSocket());
+		this->_poll_handler.addSocket(insert->getSocket());
 	}
 
 	template<class I>
-	typename std::enable_if<std::is_base_of<GatewayInterfaceBase<Side::CLIENT>, I>::value, void>::type
+	typename std::enable_if<std::is_base_of<IGatewayInterface<Side::CLIENT>, I>::value, void>::type
 	connect(
 		I& interface,
 	    const std::string& ip_address,
@@ -139,18 +141,21 @@ class Client
 	)
 	{
 		// create connection of the interface type
-		ClientConnection connection = ClientConnection(reinterpret_cast<GatewayInterfaceBase<Side::CLIENT>*>(&interface), ip_address, port, family);
-		this->connections.emplace_back(connection);
-		ClientConnection& insert = *this->connections.rbegin();
+		ClientConnection<typename I::protocol_type> *connection = new ClientConnection<typename I::protocol_type>(&interface, ip_address, port, family);
+		this->connections.emplace_back(reinterpret_cast<IClientConnection*>(connection));
+		IClientConnection* insert = *this->connections.rbegin();
 		
 		// attach connection to the interface
-		interface->attachToConnection(&insert);
+		interface->attachToConnection(insert);
 
 		// try connect to the server
-		insert.connect();
+		insert->connect();
 
 		// add to poll handler
-		this->_poll_handler.addSocket(insert.getSocket());
+		this->_poll_handler.addSocket(insert->getSocket());
+
+		// call onConnected
+		insert->getInterface()->onConnected(insert);
 	}
 
 
@@ -173,13 +178,13 @@ class Client
 	void    shutdown();
 
 	// finds a connection by socket
-	ClientConnection* findConnection(int socket);
+	IClientConnection* findConnection(int socket);
 
-	void	closeConnection(ClientConnection& connection);
+	void	closeConnection(IClientConnection* connection);
 
 	// queues data to be sent to client 
 	// this call must be used by a protocol to emit their formatted data
-	void	sendData(ClientConnection& connection, const void *data, size_t data_size);
+	void	sendData(IClientConnection* connection, const void *data, size_t data_size);
 
 
 
@@ -213,10 +218,10 @@ class Client
 // must at least be sizeof(packet_data_header) (or sizeof(size_t) + 32)
 // TODO MOVE THIS ELSEWHERE MORE VISIBLE
 #define RECV_BLK_SIZE   1024
-	bool     _receive(ClientConnection& from);
+	bool     _receive(IClientConnection* from);
 
 	// Sends the data queued for client, returns true if data was flushed entierly.
-	bool    _send_data(ClientConnection& connection);
+	bool    _send_data(IClientConnection* connection);
 
 
     /* ================================================ */
@@ -224,7 +229,7 @@ class Client
     /* ================================================ */
 
     public:
-	std::list<ClientConnection>   connections;
+	std::list<IClientConnection*>   connections;
 
 #ifdef ENABLE_TLS
 	std::string ssl_cert_file;

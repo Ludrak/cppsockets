@@ -14,57 +14,57 @@
 
 // #endif
 
-ServerEndpoint::ServerEndpoint(GatewayInterfaceBase<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family)
-: ClientsManager(), InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface)
-{}
+// ServerEndpoint::ServerEndpoint(IGatewayInterface<Side::SERVER> *const interface, const std::string& ip_address, const int port, const sa_family_t family)
+// : ClientsManager(), InetAddress(ip_address, port, family), Socket(interface->getProtocol()), _interface(interface)
+// {}
 
 
-#ifdef ENABLE_TLS
-bool    ServerEndpoint::useTLS() const
-{
-	return (this->_useTLS);
-}
-#endif
+// #ifdef ENABLE_TLS
+// bool    ServerEndpoint::useTLS() const
+// {
+// 	return (this->_useTLS);
+// }
+// #endif
 
 
-void    ServerEndpoint::start_listening(const int max_pending_connections) const
-{
-	if (this->_address_family == AF_INET)
-	{
-		if (bind(this->getSocket(), (sockaddr*)(&this->_address_4), sizeof(this->_address_4)) != 0)
-		{
-			// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address initialization on port " << this->_port << ": " << strerror(errno));
-			throw BindException();
-		}
-	}
-	else if (this->_address_family == AF_INET6)
-	{
-		if (bind(this->getSocket(), (sockaddr*)(&this->_address_6), sizeof(this->_address_6)) != 0)
-		{
-			// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address on IPv6 initialization on port " << this->_port << ": " << strerror(errno));
-			throw BindException();
-		}
-	}
+// void    ServerEndpoint::start_listening(const int max_pending_connections) const
+// {
+// 	if (this->_address_family == AF_INET)
+// 	{
+// 		if (bind(this->getSocket(), (sockaddr*)(&this->_address_4), sizeof(this->_address_4)) != 0)
+// 		{
+// 			// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address initialization on port " << this->_port << ": " << strerror(errno));
+// 			throw BindException();
+// 		}
+// 	}
+// 	else if (this->_address_family == AF_INET6)
+// 	{
+// 		if (bind(this->getSocket(), (sockaddr*)(&this->_address_6), sizeof(this->_address_6)) != 0)
+// 		{
+// 			// LOG_ERROR(LOG_CATEGORY_NETWORK, "Bind syscall failed for address on IPv6 initialization on port " << this->_port << ": " << strerror(errno));
+// 			throw BindException();
+// 		}
+// 	}
 
-	if (listen(this->getSocket(), max_pending_connections) != 0)
-	{
-		// LOG_ERROR(LOG_CATEGORY_NETWORK, "Listen syscall failed for address initialization on port " << this->_port << ": " << strerror(errno));
-		throw ListenException();
-	}
-#ifdef ENABLE_TLS
-	if (this->_useTLS)
-		;// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on TLS endpoint " <<  this->getHostname() << " on port " << this->_port)
-	else
-#endif
-		// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on endpoint " << this->getHostname() << " on port " << this->_port)
-	std::cout << "Started listening on endpoint " << this->getHostname() << " on port " << this->_port << std::endl;
-}
+// 	if (listen(this->getSocket(), max_pending_connections) != 0)
+// 	{
+// 		// LOG_ERROR(LOG_CATEGORY_NETWORK, "Listen syscall failed for address initialization on port " << this->_port << ": " << strerror(errno));
+// 		throw ListenException();
+// 	}
+// #ifdef ENABLE_TLS
+// 	if (this->_useTLS)
+// 		;// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on TLS endpoint " <<  this->getHostname() << " on port " << this->_port)
+// 	else
+// #endif
+// 		// LOG_INFO(LOG_CATEGORY_NETWORK, "Started listening on endpoint " << this->getHostname() << " on port " << this->_port)
+// 	std::cout << "Started listening on endpoint " << this->getHostname() << " on port " << this->_port << std::endl;
+// }
 
-void			ServerEndpoint::close()
-{
-	this->clear();
-	this->Socket::close();
-}
+// void			ServerEndpoint::close()
+// {
+// 	this->clear();
+// 	this->Socket::close();
+// }
 
 
 
@@ -104,12 +104,12 @@ void			ServerEndpoint::close()
 // }
 
 
-GatewayInterfaceBase<Side::SERVER>*	ServerEndpoint::getInterface()
-{
-	return (this->_interface);
-}
+// IGatewayInterface<Side::SERVER>*	ServerEndpoint::getInterface()
+// {
+// 	return (this->_interface);
+// }
 
-// PacketParserBase*					ServerEndpoint::getParser()
+// IPacketParser*					ServerEndpoint::getParser()
 // {
 // 	return (this->_parser);
 // }
